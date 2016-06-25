@@ -9,7 +9,6 @@ import (
 
 // Worker declares interface for workers using diffenent ways of sync.
 type Worker interface {
-	IsIdle() bool
 	GetStatus() Status
 	RunSync()
 	TriggerSync()
@@ -23,6 +22,8 @@ type Status struct {
 	Result bool
 	// Last success time
 	LastFinished time.Time
+	// Whether worker is idle, false if syncing
+	Idle bool
 }
 
 type errorString struct {
@@ -39,7 +40,7 @@ func NewWorker(cfg *config.RepoConfig) (*Worker, error) {
 		switch syncType {
 		case "rsync":
 			var w Worker = &PhantomWorker{
-				status: Status{Result: true, LastFinished: time.Now()},
+				status: Status{Result: true, LastFinished: time.Now(), Idle: true},
 				cfg:    cfg,
 				idle:   false,
 				signal: make(chan int),

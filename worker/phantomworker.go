@@ -14,10 +14,6 @@ type PhantomWorker struct {
 	signal chan int
 }
 
-func (w *PhantomWorker) IsIdle() bool {
-	return true
-}
-
 func (w *PhantomWorker) GetStatus() Status {
 	return w.status
 }
@@ -35,11 +31,11 @@ func (w *PhantomWorker) TriggerSync() {
 }
 
 func (w *PhantomWorker) RunSync() {
-	w.idle = true
+	w.status.Idle = true
 	for {
 		start := <-w.signal
 		if start == 1 {
-			w.idle = false
+			w.status.Idle = false
 			if src, ok := (*w.cfg)["source"]; ok {
 				if dst, ok := (*w.cfg)["path"]; ok {
 					cmd := exec.Command("rsync", "-aHvh", "--no-o", "--no-g", "--stats",
@@ -55,7 +51,7 @@ func (w *PhantomWorker) RunSync() {
 			}
 			w.status.Result = true
 			w.status.LastFinished = time.Now()
-			w.idle = true
+			w.status.Idle = true
 		}
 	}
 }
