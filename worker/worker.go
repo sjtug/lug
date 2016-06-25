@@ -10,7 +10,7 @@ import (
 // Worker declares interface for workers using diffenent ways of sync.
 type Worker interface {
 	IsIdle() bool
-	GetStatus() *Status
+	GetStatus() Status
 	RunSync()
 	TriggerSync()
 

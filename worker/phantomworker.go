@@ -18,8 +18,8 @@ func (w *PhantomWorker) IsIdle() bool {
 	return true
 }
 
-func (w *PhantomWorker) GetStatus() *Status {
-	return &w.status
+func (w *PhantomWorker) GetStatus() Status {
+	return w.status
 }
 
 // GetConfig is for test.
