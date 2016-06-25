@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type PhantomWorker struct {
+type RsyncWorker struct {
 	status Status
 	cfg    *config.RepoConfig
 	idle   bool
@@ -14,23 +14,23 @@ type PhantomWorker struct {
 	signal chan int
 }
 
-func (w *PhantomWorker) GetStatus() Status {
+func (w *RsyncWorker) GetStatus() Status {
 	return w.status
 }
 
 // GetConfig is for test.
 // TODO: remove this func.
-func (w *PhantomWorker) GetConfig() *config.RepoConfig {
+func (w *RsyncWorker) GetConfig() *config.RepoConfig {
 	return w.cfg
 }
 
-func (w *PhantomWorker) TriggerSync() {
+func (w *RsyncWorker) TriggerSync() {
 	go func() {
 		w.signal <- 1
 	}()
 }
 
-func (w *PhantomWorker) RunSync() {
+func (w *RsyncWorker) RunSync() {
 	w.status.Idle = true
 	for {
 		start := <-w.signal
@@ -43,15 +43,21 @@ func (w *PhantomWorker) RunSync() {
 						"--timeout=120", "--contimeout=120", src, dst)
 					err := cmd.Start()
 					if err != nil {
+						w.status.Result = false
+						w.idle = true
+						continue
 					}
 					err = cmd.Wait()
 					if err != nil {
+						w.status.Result = false
+						w.idle = true
+						continue
 					}
+					w.status.Result = true
+					w.status.LastFinished = time.Now()
+					w.status.Idle = true
 				}
 			}
-			w.status.Result = true
-			w.status.LastFinished = time.Now()
-			w.status.Idle = true
 		}
 	}
 }

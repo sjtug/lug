@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -26,20 +27,12 @@ type Status struct {
 	Idle bool
 }
 
-type errorString struct {
-	s string
-}
-
-func (e *errorString) Error() string {
-	return e.s
-}
-
 // NewWorker generates a worker by config and log.
 func NewWorker(cfg *config.RepoConfig) (*Worker, error) {
 	if syncType, ok := (*cfg)["type"]; ok {
 		switch syncType {
 		case "rsync":
-			var w Worker = &PhantomWorker{
+			var w Worker = &RsyncWorker{
 				status: Status{Result: true, LastFinished: time.Now(), Idle: true},
 				cfg:    cfg,
 				idle:   false,
@@ -48,7 +41,7 @@ func NewWorker(cfg *config.RepoConfig) (*Worker, error) {
 			return &w, nil
 		}
 	}
-	return nil, &errorString{"new worker fail"}
+	return nil, errors.New("fail to make a newwork")
 }
 
 func Foo() {
