@@ -24,6 +24,7 @@ func getFlags() (flags CommandFlags) {
 	 - type: rsync
 	   source: vim.org
 	   interval: 600 # Interval between sync
+	   path: /mnt/vim
 	`)
 	flag.Parse()
 	return
