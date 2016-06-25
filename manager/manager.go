@@ -1,3 +1,4 @@
+// Package manager provides definition of manager
 package manager
 
 import (
@@ -8,6 +9,7 @@ import (
 	"github.com/sjtug/lug/worker"
 )
 
+// Manager holds worker instances
 type Manager struct {
 	config  *config.Config
 	logger  *logging.Logger
@@ -19,6 +21,7 @@ func NewManager(config *config.Config, logger *logging.Logger) *Manager {
 	return &newManager
 }
 
+// run() will block current routine
 func (m *Manager) run() {
 
 }
