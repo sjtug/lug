@@ -2,8 +2,10 @@ package worker
 
 import (
 	"fmt"
-	"github.com/sjtug/lug/config"
 	"time"
+
+	"github.com/op/go-logging"
+	"github.com/sjtug/lug/config"
 )
 
 // Worker declares interface for workers using diffenent ways of sync.
@@ -22,17 +24,13 @@ type Status struct {
 }
 
 // NewWorker generates a worker by config and log.
-func NewWorker(cfg *config.Config, log *Log) Worker {
+func NewWorker(cfg *config.Config, log *logging.Logger) Worker {
 	var w Worker = &phantomWorker{
 		status: Status{Result: true, LastFinished: time.Now()},
 		cfg:    cfg,
 	}
 	return w
 }
-
-// Log is for passing compile.
-// It will be imported from manager or somewhere else.
-type Log struct{}
 
 type phantomWorker struct {
 	status Status

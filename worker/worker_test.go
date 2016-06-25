@@ -3,6 +3,7 @@ package worker
 import (
 	"testing"
 
+	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
 	"github.com/stretchr/testify/assert"
 )
@@ -19,7 +20,7 @@ repos:
 	assert := assert.New(t)
 	assert.Nil(err)
 
-	w := NewWorker(&c, &Log{})
+	w := NewWorker(&c, logging.MustGetLogger("worker"))
 
 	assert.Equal(true, w.GetStatus().Result)
 
