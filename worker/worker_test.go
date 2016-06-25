@@ -10,15 +10,15 @@ import (
 
 func TestNewWorker(t *testing.T) {
 	var c config.RepoConfig = make(map[string]string)
-	c["a"] = "aaa"
+	c["type"] = "rsync"
 	c["b"] = "bbb"
 
 	assert := assert.New(t)
 
-	w := NewWorker(&c, logging.MustGetLogger("worker"))
+	w, _ := NewWorker(&c, logging.MustGetLogger("worker"))
 
-	assert.Equal(true, w.GetStatus().Result)
-	assert.Equal("aaa", (*w.getConfig())["a"])
-	assert.Equal("bbb", (*w.getConfig())["b"])
+	assert.Equal(true, (*w).GetStatus().Result)
+	assert.Equal("rsync", (*((*w).getConfig()))["type"])
+	assert.Equal("bbb", (*((*w).getConfig()))["b"])
 
 }

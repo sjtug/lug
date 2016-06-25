@@ -7,6 +7,9 @@ import (
 type PhantomWorker struct {
 	status Status
 	cfg    *config.RepoConfig
+	idle   bool
+
+	signal chan int
 }
 
 func (w *PhantomWorker) IsIdle() bool {
@@ -27,4 +30,7 @@ func (w *PhantomWorker) TriggerSync() {
 }
 
 func (w *PhantomWorker) RunSync() {
+	w.idle = true
+	for {
+	}
 }

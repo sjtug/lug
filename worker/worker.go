@@ -26,13 +26,29 @@ type Status struct {
 	LastFinished time.Time
 }
 
+type errorString struct {
+	s string
+}
+
+func (e *errorString) Error() string {
+	return e.s
+}
+
 // NewWorker generates a worker by config and log.
-func NewWorker(cfg *config.RepoConfig, log *logging.Logger) Worker {
-	var w Worker = &PhantomWorker{
-		status: Status{Result: true, LastFinished: time.Now()},
-		cfg:    cfg,
+func NewWorker(cfg *config.RepoConfig, log *logging.Logger) (*Worker, error) {
+	if syncType, ok := (*cfg)["type"]; ok {
+		switch syncType {
+		case "rsync":
+			var w Worker = &PhantomWorker{
+				status: Status{Result: true, LastFinished: time.Now()},
+				cfg:    cfg,
+				idle:   false,
+				signal: make(chan int),
+			}
+			return &w, nil
+		}
 	}
-	return w
+	return nil, &errorString{"new worker fail"}
 }
 
 func Foo() {
