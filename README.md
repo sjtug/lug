@@ -9,3 +9,10 @@ Contributors should push to `dev` branch. Reviewed code will be merged to `maste
 2. `mkdir -p $GOPATH/src/github.com/sjtug/lug && cd $GOPATH/src/github.com/sjtug/lug`
 3. `git clone {URL of this repo} . && git checkout dev`
 4. `go get github.com/sjtug/lug`, and binary will be built under `$GOPATH/bin`
+
+NOTICE: Please attach test files when contributing to your module
+
+Used package:
+ - **Logging**: `github.com/op/go-logging` (Singleton)
+ - **Test**: Builtin `testing` package and `github.com/stretchr/testify/assert`
+ - **Yaml**: `gopkg.in/yaml.v2`
