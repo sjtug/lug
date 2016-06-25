@@ -29,3 +29,33 @@ repos:
 	assert.Equal("/mnt/vim", c.Repos[0]["path"])
 
 }
+
+func TestWrongManagerConfig(t *testing.T) {
+	var testStr string = `interval: -1
+loglevel: 5 # 1 - 5
+repos:
+- type: rsync
+  source: vim.org
+  interval: 600 # Interval between sync
+  path: /mnt/vim
+`
+	c := Config{}
+	var err error
+	err = c.Parse([]byte(testStr))
+
+	assert := assert.New(t)
+	assert.Equal("Interval can't be negative", err.Error())
+
+	testStr = `interval: 25
+loglevel: 6
+repos:
+- type: rsync
+  source: vim.org
+  interval: 600 # Interval between sync
+  path: /mnt/vim
+`
+	c = Config{}
+	err = c.Parse([]byte(testStr))
+
+	assert.Equal("loglevel must be 0-5", err.Error())
+}

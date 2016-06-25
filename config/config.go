@@ -26,7 +26,7 @@ type Config struct {
 // Function to parse config from []byte
 func (c *Config) Parse(in []byte) (err error) {
 	err = yaml.Unmarshal(in, c)
-	if err != nil {
+	if err == nil {
 		if c.Interval < 0 {
 			return errors.New("Interval can't be negative")
 		}
