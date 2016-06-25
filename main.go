@@ -1,15 +1,11 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
-	"io"
 	"io/ioutil"
-	"os"
 
+	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/manager"
-	"github.com/sjtug/lug/worker"
 )
 
 type CommandFlags struct {
@@ -40,5 +36,9 @@ func main() {
 
 	cfg := config.Config{}
 	cfg.Parse(dat)
+
+	logger := logging.MustGetLogger("lug")
+	m := manager.NewManager(&cfg, logger)
+	m.Run()
 
 }
