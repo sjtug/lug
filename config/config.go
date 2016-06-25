@@ -3,6 +3,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/op/go-logging"
@@ -23,8 +24,17 @@ type Config struct {
 }
 
 // Function to parse config from []byte
-func (c *Config) Parse(in []byte) error {
-	return yaml.Unmarshal(in, c)
+func (c *Config) Parse(in []byte) (err error) {
+	err = yaml.Unmarshal(in, c)
+	if err != nil {
+		if c.Interval < 0 {
+			return errors.New("Interval can't be negative")
+		}
+		if c.LogLevel < 0 || c.LogLevel > 5 {
+			return errors.New("loglevel must be 0-5")
+		}
+	}
+	return err
 }
 
 func Foo() {

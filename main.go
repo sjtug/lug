@@ -19,9 +19,10 @@ func getFlags() (flags CommandFlags) {
 		`Configuration file of lug.
 	Example:
 	interval: 30 # Interval between pollings
-	loglevel: 5 # 1-5
+	loglevel: 5 # 0-5
 	repos:
-	 - type: rsync
+	 - name: vim
+	   type: rsync
 	   source: vim.org
 	   interval: 600 # Interval between sync
 	   path: /mnt/vim
