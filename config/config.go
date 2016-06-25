@@ -17,7 +17,7 @@ type RepoConfig map[string]string
 type Config struct {
 	// Interval between pollings in manager
 	Interval int
-	// LogLevel: 1-5 is acceptable
+	// LogLevel: 0-5 is acceptable
 	LogLevel logging.Level
 	// Config for each repo is represented as an array of RepoConfig
 	Repos []RepoConfig
