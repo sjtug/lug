@@ -8,6 +8,7 @@ import (
 )
 
 func TestManagerStartUp(t *testing.T) {
-	manager := NewManager(&config.Config{})
+	manager, err := NewManager(&config.Config{})
+	assert.Nil(t, err)
 	assert.NotNil(t, manager)
 }

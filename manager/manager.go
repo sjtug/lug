@@ -16,9 +16,9 @@ type Manager struct {
 	workers []worker.Worker
 }
 
-func NewManager(config *config.Config) *Manager {
+func NewManager(config *config.Config) (*Manager, error) {
 	newManager := Manager{config, logging.MustGetLogger("manager"), []worker.Worker{}}
-	return &newManager
+	return &newManager, nil
 }
 
 // Run() will block current routine
