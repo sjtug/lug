@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"io/ioutil"
+	"os"
 
 	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
@@ -25,7 +26,7 @@ func getFlags() (flags CommandFlags) {
 	   interval: 600 # Interval between sync
 	`)
 	flag.Parse()
-
+	return
 }
 
 func main() {
@@ -44,7 +45,7 @@ func main() {
 	logger := logging.AddModuleLevel(baseLogger)
 	logger.SetLevel(cfg.LogLevel, "")
 	logging.SetBackend(logger)
-	m := manager.NewManager(&cfg, logger)
+	m := manager.NewManager(&cfg, logging.MustGetLogger("lug"))
 	m.Run()
 
 }
