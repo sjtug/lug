@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"io/ioutil"
 
 	"github.com/op/go-logging"
@@ -37,7 +38,12 @@ func main() {
 	cfg := config.Config{}
 	cfg.Parse(dat)
 
-	logger := logging.MustGetLogger("lug")
+	baseLogger := logging.NewLogBackend(os.Stderr, "", 0)
+
+	// Only errors and more severe messages should be sent to backend1
+	logger := logging.AddModuleLevel(baseLogger)
+	logger.SetLevel(cfg.LogLevel, "")
+	logging.SetBackend(logger)
 	m := manager.NewManager(&cfg, logger)
 	m.Run()
 
