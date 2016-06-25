@@ -30,6 +30,13 @@ func getFlags() (flags CommandFlags) {
 	return
 }
 
+func prepareLogger(logLevel logging.Level) {
+	baseLogger := logging.NewLogBackend(os.Stdout, "", 0)
+	logger := logging.AddModuleLevel(baseLogger)
+	logger.SetLevel(logLevel, "")
+	logging.SetBackend(logger)
+}
+
 func main() {
 	flags := getFlags()
 	dat, err := ioutil.ReadFile(flags.configFile)
@@ -39,11 +46,7 @@ func main() {
 
 	cfg := config.Config{}
 	err = cfg.Parse(dat)
-	baseLogger := logging.NewLogBackend(os.Stdout, "", 0)
-
-	logger := logging.AddModuleLevel(baseLogger)
-	logger.SetLevel(cfg.LogLevel, "")
-	logging.SetBackend(logger)
+	prepareLogger(cfg.LogLevel)
 
 	curLogger := logging.MustGetLogger("lug")
 	curLogger.Info("Starting...")
