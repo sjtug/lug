@@ -21,8 +21,8 @@ func NewManager(config *config.Config, logger *logging.Logger) *Manager {
 	return &newManager
 }
 
-// run() will block current routine
-func (m *Manager) run() {
+// Run() will block current routine
+func (m *Manager) Run() {
 
 }
 
