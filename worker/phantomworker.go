@@ -29,7 +29,9 @@ func (w *PhantomWorker) GetConfig() *config.RepoConfig {
 }
 
 func (w *PhantomWorker) TriggerSync() {
-	w.signal <- 1
+	go func() {
+		w.signal <- 1
+	}()
 }
 
 func (w *PhantomWorker) RunSync() {
