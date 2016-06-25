@@ -52,7 +52,10 @@ func main() {
 		panic(err)
 	}
 
-	m := manager.NewManager(&cfg, curLogger)
+	m, err := manager.NewManager(&cfg)
+	if err != nil {
+		panic(err)
+	}
 	m.Run()
 
 }
