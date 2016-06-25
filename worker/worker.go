@@ -14,7 +14,7 @@ type Worker interface {
 	RunSync()
 	TriggerSync()
 
-	getConfig() *config.RepoConfig // For test. TODO: remove.
+	GetConfig() *config.RepoConfig
 }
 
 // Status shows sync result and last timestamp.

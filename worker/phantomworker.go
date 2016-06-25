@@ -2,6 +2,8 @@ package worker
 
 import (
 	"github.com/sjtug/lug/config"
+	"os/exec"
+	"time"
 )
 
 type PhantomWorker struct {
@@ -22,7 +24,7 @@ func (w *PhantomWorker) GetStatus() *Status {
 
 // GetConfig is for test.
 // TODO: remove this func.
-func (w *PhantomWorker) getConfig() *config.RepoConfig {
+func (w *PhantomWorker) GetConfig() *config.RepoConfig {
 	return w.cfg
 }
 
@@ -36,8 +38,22 @@ func (w *PhantomWorker) RunSync() {
 		start := <-w.signal
 		if start == 1 {
 			w.idle = false
-			if _, ok := (*w.cfg)["source"]; ok {
+			if src, ok := (*w.cfg)["source"]; ok {
+				if dst, ok := (*w.cfg)["path"]; ok {
+					cmd := exec.Command("rsync", "-aHvh", "--no-o", "--no-g", "--stats",
+						"--delete", "--delete-delay", "--safe-links",
+						"--timeout=120", "--contimeout=120", src, dst)
+					err := cmd.Start()
+					if err != nil {
+					}
+					err = cmd.Wait()
+					if err != nil {
+					}
+				}
 			}
+			w.status.Result = true
+			w.status.LastFinished = time.Now()
+			w.idle = true
 		}
 	}
 }

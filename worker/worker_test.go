@@ -17,7 +17,7 @@ func TestNewWorker(t *testing.T) {
 	w, _ := NewWorker(&c)
 
 	assert.Equal(true, (*w).GetStatus().Result)
-	assert.Equal("rsync", (*((*w).getConfig()))["type"])
-	assert.Equal("bbb", (*((*w).getConfig()))["b"])
+	assert.Equal("rsync", (*((*w).GetConfig()))["type"])
+	assert.Equal("bbb", (*((*w).GetConfig()))["b"])
 
 }
