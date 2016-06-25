@@ -3,7 +3,6 @@ package worker
 import (
 	"testing"
 
-	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
 	"github.com/stretchr/testify/assert"
 )
@@ -15,7 +14,7 @@ func TestNewWorker(t *testing.T) {
 
 	assert := assert.New(t)
 
-	w, _ := NewWorker(&c, logging.MustGetLogger("worker"))
+	w, _ := NewWorker(&c)
 
 	assert.Equal(true, (*w).GetStatus().Result)
 	assert.Equal("rsync", (*((*w).getConfig()))["type"])

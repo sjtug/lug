@@ -27,10 +27,17 @@ func (w *PhantomWorker) getConfig() *config.RepoConfig {
 }
 
 func (w *PhantomWorker) TriggerSync() {
+	w.signal <- 1
 }
 
 func (w *PhantomWorker) RunSync() {
 	w.idle = true
 	for {
+		start := <-w.signal
+		if start == 1 {
+			w.idle = false
+			if _, ok := (*w.cfg)["source"]; ok {
+			}
+		}
 	}
 }

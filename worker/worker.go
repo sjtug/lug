@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
 )
 
@@ -35,7 +34,7 @@ func (e *errorString) Error() string {
 }
 
 // NewWorker generates a worker by config and log.
-func NewWorker(cfg *config.RepoConfig, log *logging.Logger) (*Worker, error) {
+func NewWorker(cfg *config.RepoConfig) (*Worker, error) {
 	if syncType, ok := (*cfg)["type"]; ok {
 		switch syncType {
 		case "rsync":
