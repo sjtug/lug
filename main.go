@@ -37,15 +37,21 @@ func main() {
 	}
 
 	cfg := config.Config{}
-	cfg.Parse(dat)
+	err = cfg.Parse(dat)
+	baseLogger := logging.NewLogBackend(os.Stdout, "", 0)
 
-	baseLogger := logging.NewLogBackend(os.Stderr, "", 0)
-
-	// Only errors and more severe messages should be sent to backend1
 	logger := logging.AddModuleLevel(baseLogger)
 	logger.SetLevel(cfg.LogLevel, "")
 	logging.SetBackend(logger)
-	m := manager.NewManager(&cfg, logging.MustGetLogger("lug"))
+
+	curLogger := logging.MustGetLogger("lug")
+	curLogger.Info("Starting...")
+	curLogger.Debugf("%+v\n", cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	m := manager.NewManager(&cfg, curLogger)
 	m.Run()
 
 }
