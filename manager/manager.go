@@ -16,8 +16,8 @@ type Manager struct {
 	workers []worker.Worker
 }
 
-func NewManager(config *config.Config, logger *logging.Logger) *Manager {
-	newManager := Manager{config, logger, []worker.Worker{}}
+func NewManager(config *config.Config) *Manager {
+	newManager := Manager{config, logging.MustGetLogger("manager"), []worker.Worker{}}
 	return &newManager
 }
 
