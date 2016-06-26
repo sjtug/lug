@@ -108,7 +108,13 @@ func (m *Manager) Exit() {
 }
 
 func (m *Manager) GetStatus() *Status {
-	return &Status{true, map[string]worker.Status{}}
+	status := Status{m.running, make(map[string]worker.Status)}
+	for _, worker := range m.workers {
+		wConfig := worker.GetConfig()
+		wStatus := worker.GetStatus()
+		status.WorkerStatus[wConfig["name"]] = wStatus
+	}
+	return &status
 }
 
 func Foo() {

@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -18,6 +19,15 @@ func TestManagerStartUp(t *testing.T) {
 		go manager.Run()
 		ch := time.NewTicker(5 * time.Second).C
 		<-ch
+		status := manager.GetStatus()
+		assert.True(t, status.Running)
+		fmt.Printf("Manager status before Stop():\n%v\n", status)
+		manager.Stop()
 		manager.Exit()
+		// Because Stop() and Exit() are currently async, we should wait first.
+		ch = time.NewTicker(1 * time.Second).C
+		<-ch
+		status = manager.GetStatus()
+		assert.False(t, status.Running)
 	}
 }
