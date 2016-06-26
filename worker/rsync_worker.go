@@ -64,18 +64,22 @@ func (w *RsyncWorker) RunSync() {
 		cmd := exec.Command("rsync", "-aHvh", "--no-o", "--no-g", "--stats",
 			"--delete", "--delete-delay", "--safe-links",
 			"--timeout=120", "--contimeout=120", src, dst)
+		w.logger.Infof("Worker %s start rsync command", w.cfg["name"])
 		err := cmd.Start()
 		if err != nil {
+			w.logger.Errorf("Worker %s rsync cannot start", w.cfg["name"])
 			w.status.Result = false
 			w.status.Idle = true
 			continue
 		}
 		err = cmd.Wait()
 		if err != nil {
+			w.logger.Errorf("Worker %s rsync failed", w.cfg["name"])
 			w.status.Result = false
 			w.status.Idle = true
 			continue
 		}
+		w.logger.Infof("Worker %s succeed", w.cfg["name"])
 		w.status.Result = true
 		w.status.LastFinished = time.Now()
 	}

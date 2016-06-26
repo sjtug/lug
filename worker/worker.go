@@ -50,5 +50,5 @@ func NewWorker(cfg config.RepoConfig) (Worker, error) {
 			return w, nil
 		}
 	}
-	return nil, errors.New("fail to make a newwork")
+	return nil, errors.New("Fail to create a new worker")
 }

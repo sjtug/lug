@@ -8,23 +8,27 @@ import (
 )
 
 func TestNewRsyncWorker(t *testing.T) {
-	var c config.RepoConfig = make(map[string]string)
-	c["type"] = "rsync"
-	c["name"] = "putty"
-	c["source"] = "source"
-	c["path"] = "path"
-	c["b"] = "bbb"
-
 	assert := assert.New(t)
 
-	w, _ := NewWorker(c)
+	var c config.RepoConfig = make(map[string]string)
+	c["type"] = "rsync"
+	w, err := NewWorker(c)
 
-	assert.Equal(true, w.GetStatus().Result)
+	assert.Nil(w)
+	assert.NotNil(err)
+
+	c["name"] = "putty"
+	c["source"] = "source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/"
+	c["path"] = "/tmp/putty"
+	c["interval"] = "6"
+	w, _ = NewWorker(c)
+
+	assert.True(w.GetStatus().Result)
+	assert.True(w.GetStatus().Idle)
 	assert.Equal("rsync", w.GetConfig()["type"])
 	assert.Equal("putty", w.GetConfig()["name"])
-	assert.Equal("path", w.GetConfig()["path"])
-	assert.Equal("source", w.GetConfig()["source"])
-	assert.Equal("bbb", w.GetConfig()["b"])
+	assert.Equal("source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/", w.GetConfig()["source"])
+	assert.Equal("/tmp/putty", w.GetConfig()["path"])
 
 }
 
