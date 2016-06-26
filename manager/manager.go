@@ -106,7 +106,7 @@ func (m *Manager) Exit() {
 	m.controlChan <- SigExit
 }
 
-func (m *Manager) GetStatus() Status {
+func (m *Manager) GetStatus() *Status {
 	return Status{true, map[string]worker.Status{}}
 }
 
