@@ -9,7 +9,7 @@ import (
 	"github.com/sjtug/lug/config"
 )
 
-// RsyncWorker has Worker interface
+// RsyncWorker implements Worker interface
 type RsyncWorker struct {
 	status Status
 	cfg    config.RepoConfig
@@ -18,6 +18,7 @@ type RsyncWorker struct {
 }
 
 // NewRsyncWorker returns a rsync worker
+// Error when necessary keys not founded in repo config
 func NewRsyncWorker(status *Status,
 	cfg config.RepoConfig,
 	signal chan int) (*RsyncWorker, error) {
@@ -36,22 +37,22 @@ func NewRsyncWorker(status *Status,
 	return &RsyncWorker{*status, cfg, signal, logging.MustGetLogger(cfg["name"])}, nil
 }
 
-// GetStatus returns a snapshot of current status
+// GetStatus returns a snapshot of current worker status
 func (w *RsyncWorker) GetStatus() Status {
 	return w.status
 }
 
-// GetConfig returns config of this repo.
+// GetConfig returns config of this repo
 func (w *RsyncWorker) GetConfig() config.RepoConfig {
 	return w.cfg
 }
 
-// TriggerSync send start signal to channel
+// TriggerSync sends start signal to channel
 func (w *RsyncWorker) TriggerSync() {
 	w.signal <- 1
 }
 
-// RunSync launches the worker
+// RunSync launches the worker and waits signal from channel
 func (w *RsyncWorker) RunSync() {
 	for {
 		w.logger.Debugf("Worker %s start waiting for signal", w.cfg["name"])

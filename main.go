@@ -25,7 +25,11 @@ repos:
       source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/
       interval: 6
       path: /tmp/putty
-      name: putty`
+      name: putty
+    - type: shell_script
+      script: /path/to/your/script
+      interval: 6
+      name: shell`
 )
 
 // Store parsed flags from command line
