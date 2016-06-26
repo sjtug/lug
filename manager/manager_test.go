@@ -10,13 +10,14 @@ import (
 )
 
 func TestManagerStartUp(t *testing.T) {
-	manager, err := NewManager(&config.Config{3, logging.INFO,
-		[]config.RepoConfig{
-			config.RepoConfig{"type": "rsync"}}})
+	manager, err := NewManager(&config.Config{3, logging.DEBUG,
+		[]config.RepoConfig{}})
 	assert.Nil(t, err)
-	assert.NotNil(t, manager)
-	go manager.Run()
-	ch := time.NewTicker(5 * time.Second).C
-	<-ch
-	manager.Exit()
+	if assert.NotNil(t, manager) {
+		logging.MustGetLogger("ManagerTest").Debugf("Manager: %+v", manager)
+		go manager.Run()
+		ch := time.NewTicker(5 * time.Second).C
+		<-ch
+		manager.Exit()
+	}
 }

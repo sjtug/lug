@@ -48,6 +48,7 @@ func NewManager(config *config.Config) (*Manager, error) {
 
 // Run() will block current routine
 func (m *Manager) Run() {
+	m.logger.Debugf("%p", m)
 	c := time.Tick(time.Duration(m.config.Interval) * time.Second)
 	for _, worker := range m.workers {
 		m.logger.Debugf("Calling RunSync() to worker %s", worker.GetConfig()["name"])
