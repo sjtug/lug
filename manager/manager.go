@@ -108,7 +108,7 @@ func (m *Manager) Exit() {
 }
 
 func (m *Manager) GetStatus() *Status {
-	return Status{true, map[string]worker.Status{}}
+	return &Status{true, map[string]worker.Status{}}
 }
 
 func Foo() {
