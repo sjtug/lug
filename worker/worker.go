@@ -2,7 +2,6 @@ package worker
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/sjtug/lug/config"
@@ -35,13 +34,8 @@ func NewWorker(cfg config.RepoConfig) (Worker, error) {
 			return NewRsyncWorker(
 				&Status{Result: true, LastFinished: time.Now(), Idle: true},
 				cfg,
-				false,
 				make(chan int)), nil
 		}
 	}
 	return nil, errors.New("fail to make a newwork")
-}
-
-func Foo() {
-	fmt.Println("worker")
 }

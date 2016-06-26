@@ -8,37 +8,39 @@ import (
 	"github.com/sjtug/lug/config"
 )
 
+// RsyncWorker has Worker interface
 type RsyncWorker struct {
 	status Status
 	cfg    config.RepoConfig
-	idle   bool
 	signal chan int
 	logger *logging.Logger
 }
 
+// NewRsyncWorker returns a rsync worker
 func NewRsyncWorker(status *Status,
 	cfg config.RepoConfig,
-	idle bool,
 	signal chan int) *RsyncWorker {
-	return &RsyncWorker{*status, cfg, idle, signal, logging.MustGetLogger(cfg["name"])}
+	return &RsyncWorker{*status, cfg, signal, logging.MustGetLogger(cfg["name"])}
 }
 
+// GetStatus returns a snapshot of current status
 func (w *RsyncWorker) GetStatus() Status {
 	return w.status
 }
 
-// GetConfig is for test.
-// TODO: remove this func.
+// GetConfig returns config of this repo.
 func (w *RsyncWorker) GetConfig() config.RepoConfig {
 	return w.cfg
 }
 
+// TriggerSync send start signal to channel
 func (w *RsyncWorker) TriggerSync() {
 	go func() {
 		w.signal <- 1
 	}()
 }
 
+// RunSync launches the worker
 func (w *RsyncWorker) RunSync() {
 	w.status.Idle = true
 	for {
@@ -55,13 +57,13 @@ func (w *RsyncWorker) RunSync() {
 					err := cmd.Start()
 					if err != nil {
 						w.status.Result = false
-						w.idle = true
+						w.status.Idle = true
 						continue
 					}
 					err = cmd.Wait()
 					if err != nil {
 						w.status.Result = false
-						w.idle = true
+						w.status.Idle = true
 						continue
 					}
 					w.status.Result = true
