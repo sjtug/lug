@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -10,8 +11,14 @@ import (
 	"github.com/sjtug/lug/manager"
 )
 
+const LugVersionInfo = `Lug: An extensible backend for software mirror
+	Presented by SJTUG Version 0.1alpha
+	
+Visit https://github.com/sjtug/lug for latest version`
+
 type CommandFlags struct {
 	configFile string
+	version    bool
 }
 
 func getFlags() (flags CommandFlags) {
@@ -27,6 +34,7 @@ func getFlags() (flags CommandFlags) {
 	   interval: 600 # Interval between sync
 	   path: /mnt/vim
 	`)
+	flag.BoolVar(&flags.version, "v", false, "Prints version of lug")
 	flag.Parse()
 	return
 }
@@ -40,6 +48,12 @@ func prepareLogger(logLevel logging.Level) {
 
 func main() {
 	flags := getFlags()
+
+	if flags.version {
+		fmt.Print(LugVersionInfo)
+		return
+	}
+
 	dat, err := ioutil.ReadFile(flags.configFile)
 	if err != nil {
 		panic(err)
