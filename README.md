@@ -1,4 +1,4 @@
-# lug ![Build Status](https://travis-ci.org/sjtug/lug.svg)
+# lug [![Build Status](https://travis-ci.org/sjtug/lug.svg)](https://travis-ci.org/sjtug/lug)
 
 Extensible backend of software mirror
 
