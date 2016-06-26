@@ -3,6 +3,10 @@
 *.a
 *.so
 
+# Compiled binary files and configuration
+lug
+config.yaml
+
 # Folders
 _obj
 _test

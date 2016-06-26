@@ -1,0 +1,12 @@
+language: go
+
+go:
+    - 1.5.4
+    - 1.6.2
+    - tip
+
+install:
+    - go get github.com/stretchr/testify/assert
+    - go get github.com/sjtug/lug
+
+script: go test github.com/sjtug/lug/worker github.com/sjtug/lug/manager github.com/sjtug/lug/config
