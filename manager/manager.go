@@ -37,6 +37,7 @@ type Status struct {
 	WorkerStatus map[string]worker.Status
 }
 
+// create a new manager with attached workers from config
 func NewManager(config *config.Config) (*Manager, error) {
 	newManager := Manager{config, logging.MustGetLogger("manager"),
 		[]worker.Worker{}, make(chan int), make(chan int), true}
@@ -120,16 +121,19 @@ func (m *Manager) expectChanVal(ch chan int, expected int) {
 	}
 }
 
+// Start polling, block until finish(may take several seconds)
 func (m *Manager) Start() {
 	m.controlChan <- SigStart
 	m.expectChanVal(m.finishChan, StartFinish)
 }
 
+// Stop polling, block until finish(may take several seconds)
 func (m *Manager) Stop() {
 	m.controlChan <- SigStop
 	m.expectChanVal(m.finishChan, StopFinish)
 }
 
+// Exit polling, block until finish(may take several seconds)
 func (m *Manager) Exit() {
 	m.Stop()
 	m.controlChan <- SigExit

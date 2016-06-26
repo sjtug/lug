@@ -28,11 +28,13 @@ repos:
       name: putty`
 )
 
+// Store parsed flags from command line
 type CommandFlags struct {
 	configFile string
 	version    bool
 }
 
+// parse command line options and return CommandFlags
 func getFlags() (flags CommandFlags) {
 	flag.StringVar(&flags.configFile, "c", "config.yaml",
 		configHelp)
@@ -41,6 +43,7 @@ func getFlags() (flags CommandFlags) {
 	return
 }
 
+// Register Logger and set logLevel
 func prepareLogger(logLevel logging.Level) {
 	baseLogger := logging.NewLogBackend(os.Stdout, "", 0)
 	logger := logging.AddModuleLevel(baseLogger)
