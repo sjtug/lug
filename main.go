@@ -11,10 +11,22 @@ import (
 	"github.com/sjtug/lug/manager"
 )
 
-const LugVersionInfo = `Lug: An extensible backend for software mirror
+const (
+	LugVersionInfo = `Lug: An extensible backend for software mirror
 	Presented by SJTUG Version 0.1alpha
 	
 Visit https://github.com/sjtug/lug for latest version`
+	configHelp = `Configuration file of lug.
+Example:
+interval: 3 # Interval between pollings
+loglevel: 5 # 1-5
+repos:
+    - type: rsync
+      source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/
+      interval: 6
+      path: /tmp/putty
+      name: putty`
+)
 
 type CommandFlags struct {
 	configFile string
@@ -23,17 +35,7 @@ type CommandFlags struct {
 
 func getFlags() (flags CommandFlags) {
 	flag.StringVar(&flags.configFile, "c", "config.yaml",
-		`Configuration file of lug.
-	Example:
-	interval: 30 # Interval between pollings
-	loglevel: 5 # 0-5
-	repos:
-	 - name: vim
-	   type: rsync
-	   source: vim.org
-	   interval: 600 # Interval between sync
-	   path: /mnt/vim
-	`)
+		configHelp)
 	flag.BoolVar(&flags.version, "v", false, "Prints version of lug")
 	flag.Parse()
 	return
