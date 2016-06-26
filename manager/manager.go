@@ -15,6 +15,9 @@ const (
 	SigStart = iota
 	SigStop
 	SigExit
+	ExitFinish
+	StopFinish
+	StartFinish
 )
 
 // Manager holds worker instances
@@ -23,6 +26,7 @@ type Manager struct {
 	logger      *logging.Logger
 	workers     []worker.Worker
 	controlChan chan int
+	finishChan  chan int
 	running     bool
 }
 
@@ -35,7 +39,7 @@ type Status struct {
 
 func NewManager(config *config.Config) (*Manager, error) {
 	newManager := Manager{config, logging.MustGetLogger("manager"),
-		[]worker.Worker{}, make(chan int), true}
+		[]worker.Worker{}, make(chan int), make(chan int), true}
 	for _, repoConfig := range config.Repos {
 		w, err := worker.NewWorker(repoConfig)
 		if err != nil {
@@ -83,28 +87,53 @@ func (m *Manager) Run() {
 					m.logger.Warningf("Unrecognized Control Signal: %d", sig)
 				case SigStart:
 					m.running = true
+					m.finishChan <- StartFinish
 				case SigStop:
 					m.running = false
+					m.finishChan <- StopFinish
 				case SigExit:
-					break
+					m.logger.Info("Exiting...")
+					goto END_OF_FINISH
 				}
 			} else {
 				m.logger.Critical("Control channel is closed!")
 			}
 		}
 	}
+END_OF_FINISH:
+	m.logger.Debug("Sending ExitFinish...")
+	m.finishChan <- ExitFinish
+	m.logger.Debug("Finished sending ExitFinish...")
+}
+
+func (m *Manager) expectChanVal(ch chan int, expected int) {
+	exitMsg, ok := (<-ch)
+	if ok {
+		switch exitMsg {
+		default:
+			m.logger.Criticalf("Unrecognized Msg: %d, expected %d", exitMsg, expected)
+		case expected:
+			m.logger.Infof("Finished reading %d", expected)
+		}
+	} else {
+		m.logger.Criticalf("Channel has been closed, expected %d", expected)
+	}
 }
 
 func (m *Manager) Start() {
 	m.controlChan <- SigStart
+	m.expectChanVal(m.finishChan, StartFinish)
 }
 
 func (m *Manager) Stop() {
 	m.controlChan <- SigStop
+	m.expectChanVal(m.finishChan, StopFinish)
 }
 
 func (m *Manager) Exit() {
+	m.Stop()
 	m.controlChan <- SigExit
+	m.expectChanVal(m.finishChan, ExitFinish)
 }
 
 func (m *Manager) GetStatus() *Status {
