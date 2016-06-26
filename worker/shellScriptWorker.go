@@ -1,6 +1,7 @@
 package worker
 
 import (
+        "errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -21,8 +22,16 @@ type ShellScriptWorker struct {
 // NewRsyncWorker returns a rsync worker
 func NewShellScriptWorker(status *Status,
 	cfg config.RepoConfig,
-	signal chan int) *ShellScriptWorker {
-	return &ShellScriptWorker{*status, cfg, signal, logging.MustGetLogger(cfg["name"])}
+	signal chan int) (*ShellScriptWorker, error) {
+	_, ok := cfg["name"]
+	if !ok {
+		return nil, errors.New("No name in config")
+	}
+	_, ok = cfg["script"]
+	if !ok {
+		return nil, errors.New("No script in config")
+	}
+	return &ShellScriptWorker{*status, cfg, signal, logging.MustGetLogger(cfg["name"])}, nil
 }
 
 // GetStatus returns a snapshot of current status

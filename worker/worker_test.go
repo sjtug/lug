@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewWorker(t *testing.T) {
+func TestNewRsyncWorker(t *testing.T) {
 	var c config.RepoConfig = make(map[string]string)
 	c["type"] = "rsync"
 	c["name"] = "putty"
@@ -25,5 +25,22 @@ func TestNewWorker(t *testing.T) {
 	assert.Equal("path", w.GetConfig()["path"])
 	assert.Equal("source", w.GetConfig()["source"])
 	assert.Equal("bbb", w.GetConfig()["b"])
+
+}
+
+func TestNewShellScriptWorker(t *testing.T) {
+	var c config.RepoConfig = make(map[string]string)
+	c["type"] = "shell_script"
+	c["name"] = "shell"
+	c["script"] = "script"
+
+	assert := assert.New(t)
+
+	w, _ := NewWorker(c)
+
+	assert.Equal(true, w.GetStatus().Result)
+	assert.Equal("shell_script", w.GetConfig()["type"])
+	assert.Equal("shell", w.GetConfig()["name"])
+	assert.Equal("script", w.GetConfig()["script"])
 
 }
