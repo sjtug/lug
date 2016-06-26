@@ -14,7 +14,7 @@ type Worker interface {
 	RunSync()
 	TriggerSync()
 
-	GetConfig() *config.RepoConfig
+	GetConfig() config.RepoConfig
 }
 
 // Status shows sync result and last timestamp.
@@ -28,17 +28,15 @@ type Status struct {
 }
 
 // NewWorker generates a worker by config and log.
-func NewWorker(cfg *config.RepoConfig) (*Worker, error) {
-	if syncType, ok := (*cfg)["type"]; ok {
+func NewWorker(cfg config.RepoConfig) (Worker, error) {
+	if syncType, ok := cfg["type"]; ok {
 		switch syncType {
 		case "rsync":
-			var w Worker = &RsyncWorker{
-				status: Status{Result: true, LastFinished: time.Now(), Idle: true},
-				cfg:    cfg,
-				idle:   false,
-				signal: make(chan int),
-			}
-			return &w, nil
+			return NewRsyncWorker(
+				&Status{Result: true, LastFinished: time.Now(), Idle: true},
+				cfg,
+				false,
+				make(chan int)), nil
 		}
 	}
 	return nil, errors.New("fail to make a newwork")

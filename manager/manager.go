@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+
 	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/worker"
@@ -14,13 +15,13 @@ import (
 type Manager struct {
 	config  *config.Config
 	logger  *logging.Logger
-	workers []*worker.Worker
+	workers []worker.Worker
 }
 
 func NewManager(config *config.Config) (*Manager, error) {
-	newManager := Manager{config, logging.MustGetLogger("manager"), []*worker.Worker{}}
+	newManager := Manager{config, logging.MustGetLogger("manager"), []worker.Worker{}}
 	for _, repoConfig := range config.Repos {
-		w, err := worker.NewWorker(&repoConfig)
+		w, err := worker.NewWorker(repoConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -32,21 +33,27 @@ func NewManager(config *config.Config) (*Manager, error) {
 // Run() will block current routine
 func (m *Manager) Run() {
 	c := time.Tick(time.Duration(m.config.Interval) * time.Second)
+	for _, worker := range m.workers {
+		m.logger.Debugf("Calling RunSync() to worker %s", worker.GetConfig()["name"])
+		go worker.RunSync()
+	}
 	for {
 		// wait until config.Interval seconds has elapsed
 		<-c
 		m.logger.Info("Start polling workers")
-		for _, worker := range m.workers {
-			wStatus := (*worker).GetStatus()
+		for i, worker := range m.workers {
+			wStatus := worker.GetStatus()
+			m.logger.Debugf("worker %d: %+v", i, wStatus)
 			if !wStatus.Idle {
 				continue
 			}
-			wConfig := (*worker).GetConfig()
+			wConfig := worker.GetConfig()
 			elapsed := time.Since(wStatus.LastFinished)
-			sec2sync, _ := strconv.Atoi((*wConfig)["interval"])
+			sec2sync, _ := strconv.Atoi(wConfig["interval"])
 			if elapsed > time.Duration(sec2sync) {
-				m.logger.Noticef("Interval of worker %s (%d sec) elapsed, trigger it to sync", sec2sync)
-				(*worker).TriggerSync()
+				m.logger.Noticef("Interval of worker %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
+				worker.TriggerSync()
+				m.logger.Noticef("Finished triggering worker %s", wConfig["name"])
 			}
 		}
 		m.logger.Info("Stop polling workerks")
