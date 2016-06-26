@@ -26,6 +26,13 @@ type Manager struct {
 	running     bool
 }
 
+// ManagerStatus holds the status of a manager and its workers
+// WorkerStatus: key = worker's name, value = worker's status
+type Status struct {
+	Running      bool
+	WorkerStatus map[string]worker.Status
+}
+
 func NewManager(config *config.Config) (*Manager, error) {
 	newManager := Manager{config, logging.MustGetLogger("manager"),
 		[]worker.Worker{}, make(chan int), true}
@@ -97,6 +104,10 @@ func (m *Manager) Stop() {
 
 func (m *Manager) Exit() {
 	m.controlChan <- SigExit
+}
+
+func (m *Manager) GetStatus() Status {
+	return Status{true, map[string]worker.Status{}}
 }
 
 func Foo() {
