@@ -56,7 +56,7 @@ func (m *Manager) Run() {
 				m.logger.Noticef("Finished triggering worker %s", wConfig["name"])
 			}
 		}
-		m.logger.Info("Stop polling workerks")
+		m.logger.Info("Stop polling workers")
 	}
 }
 
