@@ -11,15 +11,24 @@ import (
 	"github.com/sjtug/lug/worker"
 )
 
+const (
+	SigStart = iota
+	SigStop
+	SigExit
+)
+
 // Manager holds worker instances
 type Manager struct {
-	config  *config.Config
-	logger  *logging.Logger
-	workers []worker.Worker
+	config      *config.Config
+	logger      *logging.Logger
+	workers     []worker.Worker
+	controlChan chan int
+	running     bool
 }
 
 func NewManager(config *config.Config) (*Manager, error) {
-	newManager := Manager{config, logging.MustGetLogger("manager"), []worker.Worker{}}
+	newManager := Manager{config, logging.MustGetLogger("manager"),
+		[]worker.Worker{}, make(chan int), true}
 	for _, repoConfig := range config.Repos {
 		w, err := worker.NewWorker(repoConfig)
 		if err != nil {
@@ -39,24 +48,55 @@ func (m *Manager) Run() {
 	}
 	for {
 		// wait until config.Interval seconds has elapsed
-		<-c
-		m.logger.Info("Start polling workers")
-		for i, worker := range m.workers {
-			wStatus := worker.GetStatus()
-			m.logger.Debugf("worker %d: %+v", i, wStatus)
-			if !wStatus.Idle {
-				continue
+		select {
+		case <-c:
+			if m.running {
+				m.logger.Info("Start polling workers")
+				for i, worker := range m.workers {
+					wStatus := worker.GetStatus()
+					m.logger.Debugf("worker %d: %+v", i, wStatus)
+					if !wStatus.Idle {
+						continue
+					}
+					wConfig := worker.GetConfig()
+					elapsed := time.Since(wStatus.LastFinished)
+					sec2sync, _ := strconv.Atoi(wConfig["interval"])
+					if elapsed > time.Duration(sec2sync)*time.Second {
+						m.logger.Noticef("Interval of worker %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
+						worker.TriggerSync()
+					}
+				}
+				m.logger.Info("Stop polling workers")
 			}
-			wConfig := worker.GetConfig()
-			elapsed := time.Since(wStatus.LastFinished)
-			sec2sync, _ := strconv.Atoi(wConfig["interval"])
-			if elapsed > time.Duration(sec2sync) * time.Second {
-				m.logger.Noticef("Interval of worker %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
-				worker.TriggerSync()
+		case sig, ok := (<-m.controlChan):
+			if ok {
+				switch sig {
+				default:
+					m.logger.Warningf("Unrecognized Control Signal: %d", sig)
+				case SigStart:
+					m.running = true
+				case SigStop:
+					m.running = false
+				case SigExit:
+					break
+				}
+			} else {
+				m.logger.Critical("Control channel is closed!")
 			}
 		}
-		m.logger.Info("Stop polling workers")
 	}
+}
+
+func (m *Manager) Start() {
+	m.controlChan <- SigStart
+}
+
+func (m *Manager) Stop() {
+	m.controlChan <- SigStop
+}
+
+func (m *Manager) Exit() {
+	m.controlChan <- SigExit
 }
 
 func Foo() {

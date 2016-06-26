@@ -2,6 +2,8 @@ package manager
 
 import (
 	"testing"
+	"time"
+
 	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
 	"github.com/stretchr/testify/assert"
@@ -10,8 +12,11 @@ import (
 func TestManagerStartUp(t *testing.T) {
 	manager, err := NewManager(&config.Config{3, logging.INFO,
 		[]config.RepoConfig{
-			config.RepoConfig {"type": "rsync"}}})
+			config.RepoConfig{"type": "rsync"}}})
 	assert.Nil(t, err)
 	assert.NotNil(t, manager)
-	manager.Run()
+	go manager.Run()
+	ch := time.NewTicker(5 * time.Second).C
+	<-ch
+	manager.Exit()
 }
