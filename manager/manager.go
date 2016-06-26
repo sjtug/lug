@@ -53,7 +53,6 @@ func (m *Manager) Run() {
 			if elapsed > time.Duration(sec2sync) * time.Second {
 				m.logger.Noticef("Interval of worker %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
 				worker.TriggerSync()
-				m.logger.Noticef("Finished triggering worker %s", wConfig["name"])
 			}
 		}
 		m.logger.Info("Stop polling workers")
