@@ -35,6 +35,11 @@ func NewWorker(cfg config.RepoConfig) (Worker, error) {
 				&Status{Result: true, LastFinished: time.Now(), Idle: true},
 				cfg,
 				make(chan int)), nil
+		case "shell_script":
+			return NewShellScriptWorker(
+				&Status{Result: true, LastFinished: time.Now(), Idle: true},
+				cfg,
+				make(chan int)), nil
 		}
 	}
 	return nil, errors.New("fail to make a newwork")
