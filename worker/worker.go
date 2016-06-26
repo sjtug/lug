@@ -31,15 +31,23 @@ func NewWorker(cfg config.RepoConfig) (Worker, error) {
 	if syncType, ok := cfg["type"]; ok {
 		switch syncType {
 		case "rsync":
-			return NewRsyncWorker(
+			w, err := NewRsyncWorker(
 				&Status{Result: true, LastFinished: time.Now(), Idle: true},
 				cfg,
-				make(chan int)), nil
+				make(chan int))
+			if err != nil {
+				return nil, err
+			}
+			return w, nil
 		case "shell_script":
-			return NewShellScriptWorker(
+			w, err := NewShellScriptWorker(
 				&Status{Result: true, LastFinished: time.Now(), Idle: true},
 				cfg,
-				make(chan int)), nil
+				make(chan int))
+			if err != nil {
+				return nil, err
+			}
+			return w, nil
 		}
 	}
 	return nil, errors.New("fail to make a newwork")
