@@ -30,7 +30,7 @@ type Manager struct {
 	running     bool
 }
 
-// ManagerStatus holds the status of a manager and its workers
+// Status holds the status of a manager and its workers
 // WorkerStatus: key = worker's name, value = worker's status
 type Status struct {
 	Running      bool
@@ -136,6 +136,7 @@ func (m *Manager) Exit() {
 	m.expectChanVal(m.finishChan, ExitFinish)
 }
 
+// get Status from a Manager
 func (m *Manager) GetStatus() *Status {
 	status := Status{m.running, make(map[string]worker.Status)}
 	for _, worker := range m.workers {
