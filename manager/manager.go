@@ -50,7 +50,7 @@ func (m *Manager) Run() {
 			wConfig := worker.GetConfig()
 			elapsed := time.Since(wStatus.LastFinished)
 			sec2sync, _ := strconv.Atoi(wConfig["interval"])
-			if elapsed > time.Duration(sec2sync) {
+			if elapsed > time.Duration(sec2sync) * time.Second {
 				m.logger.Noticef("Interval of worker %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
 				worker.TriggerSync()
 				m.logger.Noticef("Finished triggering worker %s", wConfig["name"])
