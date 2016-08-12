@@ -2,7 +2,6 @@
 package manager
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
@@ -12,11 +11,17 @@ import (
 )
 
 const (
+	// SigStart is a signal sent to control channel of manager which starts sync of all container
 	SigStart = iota
+	// SigStop is a signal sent to control channel of manager which stops sync of all container
 	SigStop
+	// SigExit is a signal sent to control channel of manager which exits manager run loop
 	SigExit
+	// ExitFinish is a signal from finish channel of manager indicating exit finished
 	ExitFinish
+	// StopFinish is a signal from finish channel of manager indicating stopping job finished
 	StopFinish
+	// StartFinish is a signal from finish channel of manager indicating starting job finished
 	StartFinish
 )
 
@@ -37,10 +42,16 @@ type Status struct {
 	WorkerStatus map[string]worker.Status
 }
 
-// create a new manager with attached workers from config
+// NewManager creates a new manager with attached workers from config
 func NewManager(config *config.Config) (*Manager, error) {
-	newManager := Manager{config, logging.MustGetLogger("manager"),
-		[]worker.Worker{}, make(chan int), make(chan int), true}
+	newManager := Manager{
+		config:      config,
+		logger:      logging.MustGetLogger("manager"),
+		workers:     []worker.Worker{},
+		controlChan: make(chan int),
+		finishChan:  make(chan int),
+		running:     true,
+	}
 	for _, repoConfig := range config.Repos {
 		w, err := worker.NewWorker(repoConfig)
 		if err != nil {
@@ -51,7 +62,7 @@ func NewManager(config *config.Config) (*Manager, error) {
 	return &newManager, nil
 }
 
-// Run() will block current routine
+// Run will block current routine
 func (m *Manager) Run() {
 	m.logger.Debugf("%p", m)
 	c := time.Tick(time.Duration(m.config.Interval) * time.Second)
@@ -140,17 +151,16 @@ func (m *Manager) Exit() {
 	m.expectChanVal(m.finishChan, ExitFinish)
 }
 
-// get Status from a Manager
+// GetStatus gets status of Manager
 func (m *Manager) GetStatus() *Status {
-	status := Status{m.running, make(map[string]worker.Status)}
+	status := Status{
+		Running:      m.running,
+		WorkerStatus: make(map[string]worker.Status),
+	}
 	for _, worker := range m.workers {
 		wConfig := worker.GetConfig()
 		wStatus := worker.GetStatus()
 		status.WorkerStatus[wConfig["name"]] = wStatus
 	}
 	return &status
-}
-
-func Foo() {
-	fmt.Println("manager")
 }

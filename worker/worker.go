@@ -20,9 +20,9 @@ type Worker interface {
 type Status struct {
 	// Result is true if sync succeed, else false
 	Result bool
-	// Last success time
+	// LastFinished indicates last success time
 	LastFinished time.Time
-	// Whether worker is idle, false if syncing
+	// Idle stands for whether worker is idle, false if syncing
 	Idle bool
 }
 
