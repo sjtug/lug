@@ -17,3 +17,9 @@ Used package:
  - **Logging**: `github.com/op/go-logging` (Singleton)
  - **Test**: Builtin `testing` package and `github.com/stretchr/testify/assert`
  - **Yaml**: `gopkg.in/yaml.v2`
+
+## Use it in docker
+
+```
+docker run -d -v {{host_path}}:{{docker_path}} -v {{absolute_path_of_config.yaml}}:/config.yaml sjtug/lug
+```
