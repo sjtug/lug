@@ -7,6 +7,8 @@ import (
 
 	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
+	"github.com/dustin/go-humanize"
+	"syscall"
 )
 
 // RsyncWorker implements Worker interface
@@ -66,7 +68,34 @@ func (w *RsyncWorker) RunSync() {
 			"--delete", "--delete-delay", "--safe-links",
 			"--timeout=120", "--contimeout=120", src, dst)
 		w.logger.Infof("Worker %s start rsync command", w.cfg["name"])
+
+		var rlimit_as syscall.Rlimit
+
+		if rlimitMem, ok := w.cfg["rlimit_mem"]; ok {
+			if err := syscall.Getrlimit(syscall.RLIMIT_AS, &rlimit_as); err != nil {
+				w.logger.Error("Failed to getrlimit:", err)
+			}
+			if bytes, err := humanize.ParseBytes(rlimitMem); err == nil {
+				w.logger.Infof("Setting rlimit_mem... Original %d, set to %d", rlimit_as.Cur, bytes)
+				var rlimit_newas syscall.Rlimit
+				rlimit_newas = rlimit_as
+				rlimit_newas.Cur = bytes
+				err := syscall.Setrlimit(syscall.RLIMIT_AS, &rlimit_newas)
+				if err != nil {
+					w.logger.Error("Failed to setrlimit:", err)
+				}
+			} else {
+				w.logger.Error("Invalid rlimit_mem: must be size:", err)
+			}
+		}
 		err := cmd.Start()
+		if _, ok := w.cfg["rlimit_mem"]; ok {
+			w.logger.Info("Restoring previous rlimit")
+			err := syscall.Setrlimit(syscall.RLIMIT_AS, &rlimit_as)
+			if err != nil {
+				w.logger.Error("Failed to restore rlimit:", err)
+			}
+		}
 		if err != nil {
 			w.logger.Errorf("Worker %s rsync cannot start", w.cfg["name"])
 			w.status.Result = false

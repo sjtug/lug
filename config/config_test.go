@@ -31,7 +31,7 @@ repos:
 }
 
 func TestWrongManagerConfig(t *testing.T) {
-	var testStr string = `interval: -1
+	var testStr = `interval: -1
 loglevel: 5 # 1 - 5
 repos:
 - type: rsync

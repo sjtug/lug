@@ -7,9 +7,9 @@ Extensible backend of software mirror. Read our [Wiki](https://github.com/sjtug/
 Contributors should push to `dev` branch. Reviewed code will be merged to `master` branch.
 
 1. set your `GOPATH` to a directory: `export GOPATH=/home`
-2. `mkdir -p $GOPATH/src/github.com/sjtug/lug && cd $GOPATH/src/github.com/sjtug/lug`
-3. `git clone {URL of this repo} . && git checkout dev`
-4. `go get github.com/sjtug/lug`, and binary will be built under `$GOPATH/bin`
+2. `go get github.com/sjtug/lug`
+3. `cd $GOPATH/src/github.com/sjtug/lug && git checkout dev`
+4. Modify code, then use native `go build`(>=1.6, or 1.5 with `GO15VENDOREXPERIMENT` env var set) or `godep go build`(<=1.4) after installing [Godep](https://github.com/tools/godep) to build it
 
 NOTICE: Please attach test files when contributing to your module
 
@@ -17,3 +17,9 @@ Used package:
  - **Logging**: `github.com/op/go-logging` (Singleton)
  - **Test**: Builtin `testing` package and `github.com/stretchr/testify/assert`
  - **Yaml**: `gopkg.in/yaml.v2`
+
+## Use it in docker
+
+```
+docker run -d -v {{host_path}}:{{docker_path}} -v {{absolute_path_of_config.yaml}}:/config.yaml sjtug/lug
+```

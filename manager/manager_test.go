@@ -11,8 +11,11 @@ import (
 )
 
 func TestManagerStartUp(t *testing.T) {
-	manager, err := NewManager(&config.Config{3, logging.DEBUG,
-		[]config.RepoConfig{}})
+	manager, err := NewManager(&config.Config{
+		Interval: 3,
+		LogLevel: logging.DEBUG,
+		Repos:    []config.RepoConfig{},
+	})
 	assert.Nil(t, err)
 	if assert.NotNil(t, manager) {
 		logging.MustGetLogger("ManagerTest").Debugf("Manager: %+v", manager)

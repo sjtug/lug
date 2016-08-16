@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	LugVersionInfo = `Lug: An extensible backend for software mirror
+	lugVersionInfo = `Lug: An extensible backend for software mirror
 	Presented by SJTUG Version 0.1alpha
 	
 Visit https://github.com/sjtug/lug for latest version`
@@ -32,7 +32,7 @@ repos:
       name: shell`
 )
 
-// Store parsed flags from command line
+// CommandFlags stores parsed flags from command line
 type CommandFlags struct {
 	configFile string
 	version    bool
@@ -59,7 +59,7 @@ func main() {
 	flags := getFlags()
 
 	if flags.version {
-		fmt.Print(LugVersionInfo)
+		fmt.Print(lugVersionInfo)
 		return
 	}
 
