@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/bshuster-repo/logrus-logstash-hook"

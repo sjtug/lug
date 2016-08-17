@@ -25,6 +25,11 @@ type Status struct {
 	// Idle stands for whether worker is idle, false if syncing
 	Idle bool
 	// Stdout records outputs to stdout of each command execution
+	// TODO: This slice may grow quite large as time goes by
+	// Candidate solutions:
+	// - use compression method like gzip/zlib [logs tend to have high compression rate, but just workaround]
+	// - keep max-length and remove exceeded items [frequent memory operation, stop-the-world GC]
+	// Anyway, a new type needs to be implemented/imported with Put(string) and GetAll() []string method
 	Stdout []string
 	// Stderr records outputs to stderr of each command execution
 	Stderr []string
