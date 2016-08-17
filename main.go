@@ -6,9 +6,9 @@ import (
 	"io/ioutil"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/bshuster-repo/logrus-logstash-hook"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/manager"
-	"github.com/bshuster-repo/logrus-logstash-hook"
 )
 
 const (
@@ -35,8 +35,11 @@ repos:
 
 // CommandFlags stores parsed flags from command line
 type CommandFlags struct {
-	configFile string
-	version    bool
+	configFile  string
+	version     bool
+	jsonAPIAddr string
+	certFile    string
+	keyFile     string
 }
 
 // parse command line options and return CommandFlags
@@ -44,6 +47,9 @@ func getFlags() (flags CommandFlags) {
 	flag.StringVar(&flags.configFile, "c", "config.yaml",
 		configHelp)
 	flag.BoolVar(&flags.version, "v", false, "Prints version of lug")
+	flag.StringVar(&flags.jsonAPIAddr, "j", ":7001", "JSON API Address")
+	flag.StringVar(&flags.certFile, "cert", "", "HTTPS Cert file of JSON API")
+	flag.StringVar(&flags.keyFile, "key", "", "HTTPS Key file of JSON API")
 	flag.Parse()
 	return
 }
@@ -87,6 +93,16 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	jsonapi := manager.NewRestfulAPI(m)
+	if flags.keyFile == "" || flags.certFile == "" {
+		log.Infof("Http JSON API listening on %s", flags.jsonAPIAddr)
+		go http.ListenAndServe(flags.jsonAPIAddr, jsonapi.GetAPIHandler())
+	} else {
+		log.Infof("Https JSON API listening on %s with certfile %s and keyfile %s", flags.jsonAPIAddr,
+			flags.certFile, flags.keyFile)
+		go http.ListenAndServeTLS(flags.jsonAPIAddr, flags.certFile, flags.keyFile, jsonapi.GetAPIHandler())
+	}
+
 	m.Run()
 
 }

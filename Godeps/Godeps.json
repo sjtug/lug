@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/sjtug/lug",
-	"GoVersion": "go1.6",
+	"GoVersion": "go1.7",
 	"GodepVersion": "v74",
 	"Packages": [
 		".",
@@ -13,6 +13,16 @@
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.10.0-28-ga283a10",
 			"Rev": "a283a10442df8dc09befd873fab202bf8a253d6a"
+		},
+		{
+			"ImportPath": "github.com/ant0ine/go-json-rest/rest",
+			"Comment": "v3.3.1-8-g3a807d6",
+			"Rev": "3a807d6d8d36e0f9175d6c292030fce09bcbb2db"
+		},
+		{
+			"ImportPath": "github.com/ant0ine/go-json-rest/rest/trie",
+			"Comment": "v3.3.1-8-g3a807d6",
+			"Rev": "3a807d6d8d36e0f9175d6c292030fce09bcbb2db"
 		},
 		{
 			"ImportPath": "github.com/bshuster-repo/logrus-logstash-hook",
