@@ -76,7 +76,9 @@ func main() {
 
 	dat, err := ioutil.ReadFile(flags.configFile)
 	if err != nil {
-		panic(err)
+		log.Error(err)
+		fmt.Print(configHelp)
+		return
 	}
 
 	cfg := config.Config{}
