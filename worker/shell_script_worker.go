@@ -13,10 +13,11 @@ import (
 
 // ShellScriptWorker has Worker interface
 type ShellScriptWorker struct {
-	status Status
-	cfg    config.RepoConfig
-	signal chan int
-	logger *logging.Logger
+	status    Status
+	cfg       config.RepoConfig
+	signal    chan int
+	logger    *logging.Logger
+	utilities []utility
 }
 
 // NewShellScriptWorker returns a shell script worker
@@ -31,7 +32,16 @@ func NewShellScriptWorker(status *Status,
 	if !ok {
 		return nil, errors.New("No script in config")
 	}
-	return &ShellScriptWorker{*status, cfg, signal, logging.MustGetLogger(cfg["name"])}, nil
+	w := &ShellScriptWorker{
+		status:    *status,
+		cfg:       cfg,
+		signal:    signal,
+		logger:    logging.MustGetLogger(cfg["name"]),
+		utilities: []utility{},
+	}
+	w.utilities = append(w.utilities, newRlimit(w))
+	return w, nil
+
 }
 
 // GetStatus returns a snapshot of current status
@@ -69,7 +79,21 @@ func (w *ShellScriptWorker) RunSync() {
 		cmd.Env = env
 
 		w.logger.Infof("Worker %s start execution", w.cfg["name"])
+		for _, utility := range w.utilities {
+			w.logger.Debug("Executing prehook of ", utility)
+			if err := utility.preHook(); err != nil {
+				w.logger.Error("Failed to execute preHook:", err)
+			}
+		}
+
 		err := cmd.Start()
+
+		for _, utility := range w.utilities {
+			w.logger.Debug("Executing postHook of ", utility)
+			if err := utility.postHook(); err != nil {
+				w.logger.Error("Failed to execute postHook:", err)
+			}
+		}
 		if err != nil {
 			w.logger.Errorf("Worker %s execution cannot start", w.cfg["name"])
 			w.status.Result = false

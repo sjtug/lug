@@ -7,16 +7,15 @@ import (
 
 	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
-	"github.com/dustin/go-humanize"
-	"syscall"
 )
 
 // RsyncWorker implements Worker interface
 type RsyncWorker struct {
-	status Status
-	cfg    config.RepoConfig
-	signal chan int
-	logger *logging.Logger
+	status    Status
+	cfg       config.RepoConfig
+	signal    chan int
+	logger    *logging.Logger
+	utilities []utility
 }
 
 // NewRsyncWorker returns a rsync worker
@@ -36,7 +35,15 @@ func NewRsyncWorker(status *Status,
 	if !ok {
 		return nil, errors.New("No path in config")
 	}
-	return &RsyncWorker{*status, cfg, signal, logging.MustGetLogger(cfg["name"])}, nil
+	w := &RsyncWorker{
+		status:    *status,
+		cfg:       cfg,
+		signal:    signal,
+		logger:    logging.MustGetLogger(cfg["name"]),
+		utilities: []utility{},
+	}
+	w.utilities = append(w.utilities, newRlimit(w))
+	return w, nil
 }
 
 // GetStatus returns a snapshot of current worker status
@@ -69,33 +76,22 @@ func (w *RsyncWorker) RunSync() {
 			"--timeout=120", "--contimeout=120", src, dst)
 		w.logger.Infof("Worker %s start rsync command", w.cfg["name"])
 
-		var rlimit_as syscall.Rlimit
+		for _, utility := range w.utilities {
+			w.logger.Debug("Executing prehook of ", utility)
+			if err := utility.preHook(); err != nil {
+				w.logger.Error("Failed to execute preHook:", err)
+			}
+		}
 
-		if rlimitMem, ok := w.cfg["rlimit_mem"]; ok {
-			if err := syscall.Getrlimit(syscall.RLIMIT_AS, &rlimit_as); err != nil {
-				w.logger.Error("Failed to getrlimit:", err)
-			}
-			if bytes, err := humanize.ParseBytes(rlimitMem); err == nil {
-				w.logger.Infof("Setting rlimit_mem... Original %d, set to %d", rlimit_as.Cur, bytes)
-				var rlimit_newas syscall.Rlimit
-				rlimit_newas = rlimit_as
-				rlimit_newas.Cur = bytes
-				err := syscall.Setrlimit(syscall.RLIMIT_AS, &rlimit_newas)
-				if err != nil {
-					w.logger.Error("Failed to setrlimit:", err)
-				}
-			} else {
-				w.logger.Error("Invalid rlimit_mem: must be size:", err)
-			}
-		}
 		err := cmd.Start()
-		if _, ok := w.cfg["rlimit_mem"]; ok {
-			w.logger.Info("Restoring previous rlimit")
-			err := syscall.Setrlimit(syscall.RLIMIT_AS, &rlimit_as)
-			if err != nil {
-				w.logger.Error("Failed to restore rlimit:", err)
+
+		for _,utility := range w.utilities {
+			w.logger.Debug("Executing postHook of ", utility)
+			if err := utility.postHook(); err != nil {
+				w.logger.Error("Failed to execute postHook:", err)
 			}
 		}
+
 		if err != nil {
 			w.logger.Errorf("Worker %s rsync cannot start", w.cfg["name"])
 			w.status.Result = false
