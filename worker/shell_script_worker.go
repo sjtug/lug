@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/op/go-logging"
+	log "github.com/Sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"bytes"
 )
@@ -17,7 +17,7 @@ type ShellScriptWorker struct {
 	status    Status
 	cfg       config.RepoConfig
 	signal    chan int
-	logger    *logging.Logger
+	logger    *log.Entry
 	utilities []utility
 }
 
@@ -37,7 +37,7 @@ func NewShellScriptWorker(status *Status,
 		status:    *status,
 		cfg:       cfg,
 		signal:    signal,
-		logger:    logging.MustGetLogger(cfg["name"]),
+		logger:	log.WithField("worker", cfg["name"]),
 		utilities: []utility{},
 	}
 	w.utilities = append(w.utilities, newRlimit(w))
@@ -63,11 +63,11 @@ func (w *ShellScriptWorker) TriggerSync() {
 // RunSync launches the worker
 func (w *ShellScriptWorker) RunSync() {
 	for {
-		w.logger.Debugf("Worker %s start waiting for signal", w.cfg["name"])
+		w.logger.Debug("start waiting for signal")
 		w.status.Idle = true
 		<-w.signal
 		w.status.Idle = false
-		w.logger.Debugf("Worker %s finished waiting for signal", w.cfg["name"])
+		w.logger.Debug("finished waiting for signal")
 		script, _ := w.cfg["script"]
 		cmd := exec.Command(script)
 
@@ -79,7 +79,7 @@ func (w *ShellScriptWorker) RunSync() {
 		}
 		cmd.Env = env
 
-		w.logger.Infof("Worker %s start execution", w.cfg["name"])
+		w.logger.Info("start execution")
 		for _, utility := range w.utilities {
 			w.logger.Debug("Executing prehook of ", utility)
 			if err := utility.preHook(); err != nil {
@@ -100,21 +100,21 @@ func (w *ShellScriptWorker) RunSync() {
 			}
 		}
 		if err != nil {
-			w.logger.Errorf("Worker %s execution cannot start", w.cfg["name"])
+			w.logger.Error("execution cannot start")
 			w.status.Result = false
 			w.status.Idle = true
 			continue
 		}
 		err = cmd.Wait()
 		if err != nil {
-			w.logger.Errorf("Worker %s execution failed", w.cfg["name"])
+			w.logger.Error("execution failed")
 			w.status.Result = false
 			w.status.Idle = true
 			continue
 		}
-		w.logger.Infof("Worker %s succeed", w.cfg["name"])
-		w.logger.Infof("Stderr of worker %s: %s", w.cfg["name"], bufErr.String())
-		w.logger.Debugf("Stdout of worker %s: %s", w.cfg["name"], bufOut.String())
+		w.logger.Info("succeed")
+		w.logger.Infof("Stderr: %s", bufErr.String())
+		w.logger.Debugf("Stdout: %s", bufOut.String())
 		w.status.Result = true
 		w.status.LastFinished = time.Now()
 	}

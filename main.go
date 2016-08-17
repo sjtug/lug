@@ -4,9 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"os"
 
-	"github.com/op/go-logging"
+	log "github.com/Sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/manager"
 )
@@ -49,11 +48,8 @@ func getFlags() (flags CommandFlags) {
 }
 
 // Register Logger and set logLevel
-func prepareLogger(logLevel logging.Level) {
-	baseLogger := logging.NewLogBackend(os.Stdout, "", 0)
-	logger := logging.AddModuleLevel(baseLogger)
-	logger.SetLevel(logLevel, "")
-	logging.SetBackend(logger)
+func prepareLogger(logLevel log.Level) {
+	log.SetLevel(logLevel)
 }
 
 func main() {
@@ -73,9 +69,8 @@ func main() {
 	err = cfg.Parse(dat)
 	prepareLogger(cfg.LogLevel)
 
-	curLogger := logging.MustGetLogger("lug")
-	curLogger.Info("Starting...")
-	curLogger.Debugf("%+v\n", cfg)
+	log.Info("Starting...")
+	log.Debugf("%+v\n", cfg)
 	if err != nil {
 		panic(err)
 	}

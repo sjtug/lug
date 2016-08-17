@@ -2,10 +2,10 @@ package manager
 
 import (
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"testing"
 	"time"
 
-	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,12 +13,11 @@ import (
 func TestManagerStartUp(t *testing.T) {
 	manager, err := NewManager(&config.Config{
 		Interval: 3,
-		LogLevel: logging.DEBUG,
 		Repos:    []config.RepoConfig{},
 	})
 	assert.Nil(t, err)
 	if assert.NotNil(t, manager) {
-		logging.MustGetLogger("ManagerTest").Debugf("Manager: %+v", manager)
+		log.Debugf("Manager: %+v", manager)
 		go manager.Run()
 		ch := time.NewTicker(5 * time.Second).C
 		<-ch

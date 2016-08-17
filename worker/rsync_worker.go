@@ -5,9 +5,9 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/op/go-logging"
-	"github.com/sjtug/lug/config"
 	"bytes"
+	log "github.com/Sirupsen/logrus"
+	"github.com/sjtug/lug/config"
 )
 
 // RsyncWorker implements Worker interface
@@ -15,7 +15,7 @@ type RsyncWorker struct {
 	status    Status
 	cfg       config.RepoConfig
 	signal    chan int
-	logger    *logging.Logger
+	logger    *log.Entry
 	utilities []utility
 }
 
@@ -40,8 +40,8 @@ func NewRsyncWorker(status *Status,
 		status:    *status,
 		cfg:       cfg,
 		signal:    signal,
-		logger:    logging.MustGetLogger(cfg["name"]),
 		utilities: []utility{},
+		logger:    log.WithField("worker", cfg["name"]),
 	}
 	w.utilities = append(w.utilities, newRlimit(w))
 	return w, nil
@@ -65,11 +65,11 @@ func (w *RsyncWorker) TriggerSync() {
 // RunSync launches the worker and waits signal from channel
 func (w *RsyncWorker) RunSync() {
 	for {
-		w.logger.Debugf("Worker %s start waiting for signal", w.cfg["name"])
+		w.logger.Debug("start waiting for signal")
 		w.status.Idle = true
 		<-w.signal
 		w.status.Idle = false
-		w.logger.Debugf("Worker %s finished waiting for signal", w.cfg["name"])
+		w.logger.Debug("finished waiting for signal")
 		src, _ := w.cfg["source"]
 		dst, _ := w.cfg["path"]
 		cmd := exec.Command("rsync", "-aHvh", "--no-o", "--no-g", "--stats",
@@ -78,7 +78,7 @@ func (w *RsyncWorker) RunSync() {
 		var bufErr, bufOut bytes.Buffer
 		cmd.Stdout = &bufOut
 		cmd.Stderr = &bufErr
-		w.logger.Infof("Worker %s start rsync command", w.cfg["name"])
+		w.logger.Info("start rsync command")
 
 		for _, utility := range w.utilities {
 			w.logger.Debug("Executing prehook of ", utility)
@@ -89,7 +89,7 @@ func (w *RsyncWorker) RunSync() {
 
 		err := cmd.Start()
 
-		for _,utility := range w.utilities {
+		for _, utility := range w.utilities {
 			w.logger.Debug("Executing postHook of ", utility)
 			if err := utility.postHook(); err != nil {
 				w.logger.Error("Failed to execute postHook:", err)
@@ -97,21 +97,21 @@ func (w *RsyncWorker) RunSync() {
 		}
 
 		if err != nil {
-			w.logger.Errorf("Worker %s rsync cannot start", w.cfg["name"])
+			w.logger.Error("rsync cannot start")
 			w.status.Result = false
 			w.status.Idle = true
 			continue
 		}
 		err = cmd.Wait()
 		if err != nil {
-			w.logger.Errorf("Worker %s rsync failed", w.cfg["name"])
+			w.logger.Error("rsync failed")
 			w.status.Result = false
 			w.status.Idle = true
 			continue
 		}
-		w.logger.Infof("Worker %s succeed", w.cfg["name"])
-		w.logger.Infof("Stderr of worker %s: %s", w.cfg["name"], bufErr.String())
-		w.logger.Debugf("Stdout of worker %s: %s", w.cfg["name"], bufOut.String())
+		w.logger.Info("succeed")
+		w.logger.Infof("Stderr: %s", bufErr.String())
+		w.logger.Debugf("Stdout: %s", bufOut.String())
 		w.status.Result = true
 		w.status.LastFinished = time.Now()
 	}
