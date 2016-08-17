@@ -8,6 +8,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/manager"
+	"github.com/bshuster-repo/logrus-logstash-hook"
 )
 
 const (
@@ -48,8 +49,15 @@ func getFlags() (flags CommandFlags) {
 }
 
 // Register Logger and set logLevel
-func prepareLogger(logLevel log.Level) {
+func prepareLogger(logLevel log.Level, logStashAddr string) {
 	log.SetLevel(logLevel)
+	if logStashAddr != "" {
+		hook, err := logrus_logstash.NewHook("tcp", logStashAddr, "lug")
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.AddHook(hook)
+	}
 }
 
 func main() {
@@ -67,7 +75,7 @@ func main() {
 
 	cfg := config.Config{}
 	err = cfg.Parse(dat)
-	prepareLogger(cfg.LogLevel)
+	prepareLogger(cfg.LogLevel, cfg.LogStashAddr)
 
 	log.Info("Starting...")
 	log.Debugf("%+v\n", cfg)

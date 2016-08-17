@@ -17,6 +17,8 @@ type Config struct {
 	Interval int
 	// LogLevel: 0-5 is acceptable
 	LogLevel log.Level
+	// LogStashAddr represents the address of logstash
+	LogStashAddr string
 	// Config for each repo is represented as an array of RepoConfig
 	Repos []RepoConfig
 }

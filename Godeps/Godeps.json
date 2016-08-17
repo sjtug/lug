@@ -15,6 +15,10 @@
 			"Rev": "a283a10442df8dc09befd873fab202bf8a253d6a"
 		},
 		{
+			"ImportPath": "github.com/bshuster-repo/logrus-logstash-hook",
+			"Rev": "f8b7f00a4feb2088e5f7290f1c9360d1081ba0b5"
+		},
+		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
 			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
 		},
