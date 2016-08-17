@@ -114,7 +114,9 @@ func (w *ShellScriptWorker) RunSync() {
 		}
 		w.logger.Info("succeed")
 		w.logger.Infof("Stderr: %s", bufErr.String())
+		w.status.Stderr = append(w.status.Stderr, bufErr.String())
 		w.logger.Debugf("Stdout: %s", bufOut.String())
+		w.status.Stdout = append(w.status.Stdout, bufOut.String())
 		w.status.Result = true
 		w.status.LastFinished = time.Now()
 	}

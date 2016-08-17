@@ -24,6 +24,10 @@ type Status struct {
 	LastFinished time.Time
 	// Idle stands for whether worker is idle, false if syncing
 	Idle bool
+	// Stdout records outputs to stdout of each command execution
+	Stdout []string
+	// Stderr records outputs to stderr of each command execution
+	Stderr []string
 }
 
 // NewWorker generates a worker by config and log.
