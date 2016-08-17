@@ -26,6 +26,7 @@ repos:
       interval: 6
       path: /tmp/putty
       name: putty
+      rlimit_mem: 200M
     - type: shell_script
       script: /path/to/your/script
       interval: 6
