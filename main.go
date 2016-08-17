@@ -37,6 +37,7 @@ repos:
 type CommandFlags struct {
 	configFile  string
 	version     bool
+	license     bool
 	jsonAPIAddr string
 	certFile    string
 	keyFile     string
@@ -46,6 +47,7 @@ type CommandFlags struct {
 func getFlags() (flags CommandFlags) {
 	flag.StringVar(&flags.configFile, "c", "config.yaml",
 		configHelp)
+	flag.BoolVar(&flags.license, "license", false, "Prints license of used libraries")
 	flag.BoolVar(&flags.version, "v", false, "Prints version of lug")
 	flag.StringVar(&flags.jsonAPIAddr, "j", ":7001", "JSON API Address")
 	flag.StringVar(&flags.certFile, "cert", "", "HTTPS Cert file of JSON API")
@@ -71,6 +73,11 @@ func main() {
 
 	if flags.version {
 		fmt.Print(lugVersionInfo)
+		return
+	}
+
+	if flags.license {
+		fmt.Print(licenseText)
 		return
 	}
 
