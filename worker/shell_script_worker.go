@@ -9,6 +9,7 @@ import (
 
 	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
+	"bytes"
 )
 
 // ShellScriptWorker has Worker interface
@@ -86,6 +87,10 @@ func (w *ShellScriptWorker) RunSync() {
 			}
 		}
 
+		var bufErr, bufOut bytes.Buffer
+		cmd.Stdout = &bufOut
+		cmd.Stderr = &bufErr
+
 		err := cmd.Start()
 
 		for _, utility := range w.utilities {
@@ -108,6 +113,8 @@ func (w *ShellScriptWorker) RunSync() {
 			continue
 		}
 		w.logger.Infof("Worker %s succeed", w.cfg["name"])
+		w.logger.Infof("Stderr of worker %s: %s", w.cfg["name"], bufErr.String())
+		w.logger.Debugf("Stdout of worker %s: %s", w.cfg["name"], bufOut.String())
 		w.status.Result = true
 		w.status.LastFinished = time.Now()
 	}

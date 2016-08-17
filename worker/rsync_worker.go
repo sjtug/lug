@@ -7,6 +7,7 @@ import (
 
 	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
+	"bytes"
 )
 
 // RsyncWorker implements Worker interface
@@ -74,6 +75,9 @@ func (w *RsyncWorker) RunSync() {
 		cmd := exec.Command("rsync", "-aHvh", "--no-o", "--no-g", "--stats",
 			"--delete", "--delete-delay", "--safe-links",
 			"--timeout=120", "--contimeout=120", src, dst)
+		var bufErr, bufOut bytes.Buffer
+		cmd.Stdout = &bufOut
+		cmd.Stderr = &bufErr
 		w.logger.Infof("Worker %s start rsync command", w.cfg["name"])
 
 		for _, utility := range w.utilities {
@@ -106,6 +110,8 @@ func (w *RsyncWorker) RunSync() {
 			continue
 		}
 		w.logger.Infof("Worker %s succeed", w.cfg["name"])
+		w.logger.Infof("Stderr of worker %s: %s", w.cfg["name"], bufErr.String())
+		w.logger.Debugf("Stdout of worker %s: %s", w.cfg["name"], bufOut.String())
 		w.status.Result = true
 		w.status.LastFinished = time.Now()
 	}
