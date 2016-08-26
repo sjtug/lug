@@ -1,14 +1,33 @@
 {
 	"ImportPath": "github.com/sjtug/lug",
-	"GoVersion": "go1.6",
+	"GoVersion": "go1.7",
 	"GodepVersion": "v74",
 	"Packages": [
 		".",
-		"./manager",
 		"./worker",
+		"./manager",
 		"./config"
 	],
 	"Deps": [
+		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.10.0-28-ga283a10",
+			"Rev": "a283a10442df8dc09befd873fab202bf8a253d6a"
+		},
+		{
+			"ImportPath": "github.com/ant0ine/go-json-rest/rest",
+			"Comment": "v3.3.1-8-g3a807d6",
+			"Rev": "3a807d6d8d36e0f9175d6c292030fce09bcbb2db"
+		},
+		{
+			"ImportPath": "github.com/ant0ine/go-json-rest/rest/trie",
+			"Comment": "v3.3.1-8-g3a807d6",
+			"Rev": "3a807d6d8d36e0f9175d6c292030fce09bcbb2db"
+		},
+		{
+			"ImportPath": "github.com/bshuster-repo/logrus-logstash-hook",
+			"Rev": "f8b7f00a4feb2088e5f7290f1c9360d1081ba0b5"
+		},
 		{
 			"ImportPath": "github.com/davecgh/go-spew/spew",
 			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
@@ -18,11 +37,6 @@
 			"Rev": "2fcb5204cdc65b4bec9fd0a87606bb0d0e3c54e8"
 		},
 		{
-			"ImportPath": "github.com/op/go-logging",
-			"Comment": "v1-7-g970db52",
-			"Rev": "970db520ece77730c7e4724c61121037378659d9"
-		},
-		{
 			"ImportPath": "github.com/pmezard/go-difflib/difflib",
 			"Rev": "792786c7400a136282c1664665ae0a8db921c6c2"
 		},
@@ -30,6 +44,10 @@
 			"ImportPath": "github.com/stretchr/testify/assert",
 			"Comment": "v1.1.3-19-gd77da35",
 			"Rev": "d77da356e56a7428ad25149ca77381849a6a5232"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "a646d33e2ee3172a661fc09bca23bb4889a41bc8"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",

@@ -5,18 +5,18 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/op/go-logging"
+	"bytes"
+	log "github.com/Sirupsen/logrus"
 	"github.com/sjtug/lug/config"
-	"github.com/dustin/go-humanize"
-	"syscall"
 )
 
 // RsyncWorker implements Worker interface
 type RsyncWorker struct {
-	status Status
-	cfg    config.RepoConfig
-	signal chan int
-	logger *logging.Logger
+	status    Status
+	cfg       config.RepoConfig
+	signal    chan int
+	logger    *log.Entry
+	utilities []utility
 }
 
 // NewRsyncWorker returns a rsync worker
@@ -36,7 +36,15 @@ func NewRsyncWorker(status *Status,
 	if !ok {
 		return nil, errors.New("No path in config")
 	}
-	return &RsyncWorker{*status, cfg, signal, logging.MustGetLogger(cfg["name"])}, nil
+	w := &RsyncWorker{
+		status:    *status,
+		cfg:       cfg,
+		signal:    signal,
+		utilities: []utility{},
+		logger:    log.WithField("worker", cfg["name"]),
+	}
+	w.utilities = append(w.utilities, newRlimit(w))
+	return w, nil
 }
 
 // GetStatus returns a snapshot of current worker status
@@ -57,59 +65,55 @@ func (w *RsyncWorker) TriggerSync() {
 // RunSync launches the worker and waits signal from channel
 func (w *RsyncWorker) RunSync() {
 	for {
-		w.logger.Debugf("Worker %s start waiting for signal", w.cfg["name"])
+		w.logger.Debug("start waiting for signal")
 		w.status.Idle = true
 		<-w.signal
 		w.status.Idle = false
-		w.logger.Debugf("Worker %s finished waiting for signal", w.cfg["name"])
+		w.logger.Debug("finished waiting for signal")
 		src, _ := w.cfg["source"]
 		dst, _ := w.cfg["path"]
 		cmd := exec.Command("rsync", "-aHvh", "--no-o", "--no-g", "--stats",
 			"--delete", "--delete-delay", "--safe-links",
 			"--timeout=120", "--contimeout=120", src, dst)
-		w.logger.Infof("Worker %s start rsync command", w.cfg["name"])
+		var bufErr, bufOut bytes.Buffer
+		cmd.Stdout = &bufOut
+		cmd.Stderr = &bufErr
+		w.logger.Info("start rsync command")
 
-		var rlimit_as syscall.Rlimit
-
-		if rlimitMem, ok := w.cfg["rlimit_mem"]; ok {
-			if err := syscall.Getrlimit(syscall.RLIMIT_AS, &rlimit_as); err != nil {
-				w.logger.Error("Failed to getrlimit:", err)
-			}
-			if bytes, err := humanize.ParseBytes(rlimitMem); err == nil {
-				w.logger.Infof("Setting rlimit_mem... Original %d, set to %d", rlimit_as.Cur, bytes)
-				var rlimit_newas syscall.Rlimit
-				rlimit_newas = rlimit_as
-				rlimit_newas.Cur = bytes
-				err := syscall.Setrlimit(syscall.RLIMIT_AS, &rlimit_newas)
-				if err != nil {
-					w.logger.Error("Failed to setrlimit:", err)
-				}
-			} else {
-				w.logger.Error("Invalid rlimit_mem: must be size:", err)
+		for _, utility := range w.utilities {
+			w.logger.Debug("Executing prehook of ", utility)
+			if err := utility.preHook(); err != nil {
+				w.logger.Error("Failed to execute preHook:", err)
 			}
 		}
+
 		err := cmd.Start()
-		if _, ok := w.cfg["rlimit_mem"]; ok {
-			w.logger.Info("Restoring previous rlimit")
-			err := syscall.Setrlimit(syscall.RLIMIT_AS, &rlimit_as)
-			if err != nil {
-				w.logger.Error("Failed to restore rlimit:", err)
+
+		for _, utility := range w.utilities {
+			w.logger.Debug("Executing postHook of ", utility)
+			if err := utility.postHook(); err != nil {
+				w.logger.Error("Failed to execute postHook:", err)
 			}
 		}
+
 		if err != nil {
-			w.logger.Errorf("Worker %s rsync cannot start", w.cfg["name"])
+			w.logger.Error("rsync cannot start")
 			w.status.Result = false
 			w.status.Idle = true
 			continue
 		}
 		err = cmd.Wait()
 		if err != nil {
-			w.logger.Errorf("Worker %s rsync failed", w.cfg["name"])
+			w.logger.Error("rsync failed")
 			w.status.Result = false
 			w.status.Idle = true
 			continue
 		}
-		w.logger.Infof("Worker %s succeed", w.cfg["name"])
+		w.logger.Info("succeed")
+		w.logger.Infof("Stderr: %s", bufErr.String())
+		w.status.Stderr = append(w.status.Stderr, bufErr.String())
+		w.logger.Debugf("Stdout: %s", bufOut.String())
+		w.status.Stdout = append(w.status.Stdout, bufOut.String())
 		w.status.Result = true
 		w.status.LastFinished = time.Now()
 	}

@@ -4,8 +4,8 @@ package manager
 import (
 	"strconv"
 	"time"
+	log "github.com/Sirupsen/logrus"
 
-	"github.com/op/go-logging"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/worker"
 )
@@ -28,7 +28,6 @@ const (
 // Manager holds worker instances
 type Manager struct {
 	config      *config.Config
-	logger      *logging.Logger
 	workers     []worker.Worker
 	controlChan chan int
 	finishChan  chan int
@@ -46,7 +45,6 @@ type Status struct {
 func NewManager(config *config.Config) (*Manager, error) {
 	newManager := Manager{
 		config:      config,
-		logger:      logging.MustGetLogger("manager"),
 		workers:     []worker.Worker{},
 		controlChan: make(chan int),
 		finishChan:  make(chan int),
@@ -64,10 +62,10 @@ func NewManager(config *config.Config) (*Manager, error) {
 
 // Run will block current routine
 func (m *Manager) Run() {
-	m.logger.Debugf("%p", m)
+	log.Debugf("%p", m)
 	c := time.Tick(time.Duration(m.config.Interval) * time.Second)
 	for _, worker := range m.workers {
-		m.logger.Debugf("Calling RunSync() to worker %s", worker.GetConfig()["name"])
+		log.Debugf("Calling RunSync() to worker %s", worker.GetConfig()["name"])
 		go worker.RunSync()
 	}
 	for {
@@ -75,10 +73,10 @@ func (m *Manager) Run() {
 		select {
 		case <-c:
 			if m.running {
-				m.logger.Info("Start polling workers")
+				log.Info("Start polling workers")
 				for i, worker := range m.workers {
 					wStatus := worker.GetStatus()
-					m.logger.Debugf("worker %d: %+v", i, wStatus)
+					log.Debugf("worker %d: %+v", i, wStatus)
 					if !wStatus.Idle {
 						continue
 					}
@@ -86,17 +84,17 @@ func (m *Manager) Run() {
 					elapsed := time.Since(wStatus.LastFinished)
 					sec2sync, _ := strconv.Atoi(wConfig["interval"])
 					if elapsed > time.Duration(sec2sync)*time.Second {
-						m.logger.Noticef("Interval of worker %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
+						log.Infof("Interval of worker %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
 						worker.TriggerSync()
 					}
 				}
-				m.logger.Info("Stop polling workers")
+				log.Info("Stop polling workers")
 			}
 		case sig, ok := (<-m.controlChan):
 			if ok {
 				switch sig {
 				default:
-					m.logger.Warningf("Unrecognized Control Signal: %d", sig)
+					log.Warningf("Unrecognized Control Signal: %d", sig)
 				case SigStart:
 					m.running = true
 					m.finishChan <- StartFinish
@@ -104,18 +102,18 @@ func (m *Manager) Run() {
 					m.running = false
 					m.finishChan <- StopFinish
 				case SigExit:
-					m.logger.Info("Exiting...")
+					log.Info("Exiting...")
 					goto END_OF_FINISH
 				}
 			} else {
-				m.logger.Critical("Control channel is closed!")
+				log.Fatal("Control channel is closed!")
 			}
 		}
 	}
 END_OF_FINISH:
-	m.logger.Debug("Sending ExitFinish...")
+	log.Debug("Sending ExitFinish...")
 	m.finishChan <- ExitFinish
-	m.logger.Debug("Finished sending ExitFinish...")
+	log.Debug("Finished sending ExitFinish...")
 }
 
 func (m *Manager) expectChanVal(ch chan int, expected int) {
@@ -123,12 +121,12 @@ func (m *Manager) expectChanVal(ch chan int, expected int) {
 	if ok {
 		switch exitMsg {
 		default:
-			m.logger.Criticalf("Unrecognized Msg: %d, expected %d", exitMsg, expected)
+			log.Fatalf("Unrecognized Msg: %d, expected %d", exitMsg, expected)
 		case expected:
-			m.logger.Infof("Finished reading %d", expected)
+			log.Infof("Finished reading %d", expected)
 		}
 	} else {
-		m.logger.Criticalf("Channel has been closed, expected %d", expected)
+		log.Fatalf("Channel has been closed, expected %d", expected)
 	}
 }
 

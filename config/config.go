@@ -4,8 +4,7 @@ package config
 
 import (
 	"errors"
-
-	"github.com/op/go-logging"
+	log "github.com/Sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -17,7 +16,9 @@ type Config struct {
 	// Interval between pollings in manager
 	Interval int
 	// LogLevel: 0-5 is acceptable
-	LogLevel logging.Level
+	LogLevel log.Level
+	// LogStashAddr represents the address of logstash
+	LogStashAddr string
 	// Config for each repo is represented as an array of RepoConfig
 	Repos []RepoConfig
 }

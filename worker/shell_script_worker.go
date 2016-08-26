@@ -7,16 +7,18 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/op/go-logging"
+	log "github.com/Sirupsen/logrus"
 	"github.com/sjtug/lug/config"
+	"bytes"
 )
 
 // ShellScriptWorker has Worker interface
 type ShellScriptWorker struct {
-	status Status
-	cfg    config.RepoConfig
-	signal chan int
-	logger *logging.Logger
+	status    Status
+	cfg       config.RepoConfig
+	signal    chan int
+	logger    *log.Entry
+	utilities []utility
 }
 
 // NewShellScriptWorker returns a shell script worker
@@ -31,7 +33,16 @@ func NewShellScriptWorker(status *Status,
 	if !ok {
 		return nil, errors.New("No script in config")
 	}
-	return &ShellScriptWorker{*status, cfg, signal, logging.MustGetLogger(cfg["name"])}, nil
+	w := &ShellScriptWorker{
+		status:    *status,
+		cfg:       cfg,
+		signal:    signal,
+		logger:	log.WithField("worker", cfg["name"]),
+		utilities: []utility{},
+	}
+	w.utilities = append(w.utilities, newRlimit(w))
+	return w, nil
+
 }
 
 // GetStatus returns a snapshot of current status
@@ -52,11 +63,11 @@ func (w *ShellScriptWorker) TriggerSync() {
 // RunSync launches the worker
 func (w *ShellScriptWorker) RunSync() {
 	for {
-		w.logger.Debugf("Worker %s start waiting for signal", w.cfg["name"])
+		w.logger.Debug("start waiting for signal")
 		w.status.Idle = true
 		<-w.signal
 		w.status.Idle = false
-		w.logger.Debugf("Worker %s finished waiting for signal", w.cfg["name"])
+		w.logger.Debug("finished waiting for signal")
 		script, _ := w.cfg["script"]
 		cmd := exec.Command(script)
 
@@ -68,22 +79,44 @@ func (w *ShellScriptWorker) RunSync() {
 		}
 		cmd.Env = env
 
-		w.logger.Infof("Worker %s start execution", w.cfg["name"])
+		w.logger.Info("start execution")
+		for _, utility := range w.utilities {
+			w.logger.Debug("Executing prehook of ", utility)
+			if err := utility.preHook(); err != nil {
+				w.logger.Error("Failed to execute preHook:", err)
+			}
+		}
+
+		var bufErr, bufOut bytes.Buffer
+		cmd.Stdout = &bufOut
+		cmd.Stderr = &bufErr
+
 		err := cmd.Start()
+
+		for _, utility := range w.utilities {
+			w.logger.Debug("Executing postHook of ", utility)
+			if err := utility.postHook(); err != nil {
+				w.logger.Error("Failed to execute postHook:", err)
+			}
+		}
 		if err != nil {
-			w.logger.Errorf("Worker %s execution cannot start", w.cfg["name"])
+			w.logger.Error("execution cannot start")
 			w.status.Result = false
 			w.status.Idle = true
 			continue
 		}
 		err = cmd.Wait()
 		if err != nil {
-			w.logger.Errorf("Worker %s execution failed", w.cfg["name"])
+			w.logger.Error("execution failed")
 			w.status.Result = false
 			w.status.Idle = true
 			continue
 		}
-		w.logger.Infof("Worker %s succeed", w.cfg["name"])
+		w.logger.Info("succeed")
+		w.logger.Infof("Stderr: %s", bufErr.String())
+		w.status.Stderr = append(w.status.Stderr, bufErr.String())
+		w.logger.Debugf("Stdout: %s", bufOut.String())
+		w.status.Stdout = append(w.status.Stdout, bufOut.String())
 		w.status.Result = true
 		w.status.LastFinished = time.Now()
 	}
