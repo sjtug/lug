@@ -8,20 +8,25 @@ import (
 	"bytes"
 	log "github.com/Sirupsen/logrus"
 	"github.com/sjtug/lug/config"
+	"github.com/sjtug/lug/helper"
 )
 
 // RsyncWorker implements Worker interface
 type RsyncWorker struct {
-	status    Status
-	cfg       config.RepoConfig
-	signal    chan int
-	logger    *log.Entry
-	utilities []utility
+	cfg          config.RepoConfig
+	signal       chan int
+	logger       *log.Entry
+	utilities    []utility
+	idle         bool
+	result       bool
+	lastFinished time.Time
+	stdout       *helper.MaxLengthStringSliceAdaptor
+	stderr       *helper.MaxLengthStringSliceAdaptor
 }
 
 // NewRsyncWorker returns a rsync worker
 // Error when necessary keys not founded in repo config
-func NewRsyncWorker(status *Status,
+func NewRsyncWorker(status Status,
 	cfg config.RepoConfig,
 	signal chan int) (*RsyncWorker, error) {
 	_, ok := cfg["name"]
@@ -37,11 +42,15 @@ func NewRsyncWorker(status *Status,
 		return nil, errors.New("No path in config")
 	}
 	w := &RsyncWorker{
-		status:    *status,
-		cfg:       cfg,
-		signal:    signal,
-		utilities: []utility{},
-		logger:    log.WithField("worker", cfg["name"]),
+		idle:         status.Idle,
+		result:       status.Result,
+		lastFinished: status.LastFinished,
+		stdout:       helper.NewMaxLengthSlice(status.Stdout, 200),
+		stderr:       helper.NewMaxLengthSlice(status.Stderr, 200),
+		cfg:          cfg,
+		signal:       signal,
+		utilities:    []utility{},
+		logger:       log.WithField("worker", cfg["name"]),
 	}
 	w.utilities = append(w.utilities, newRlimit(w))
 	return w, nil
@@ -49,7 +58,13 @@ func NewRsyncWorker(status *Status,
 
 // GetStatus returns a snapshot of current worker status
 func (w *RsyncWorker) GetStatus() Status {
-	return w.status
+	return Status{
+		Idle: w.idle,
+		Result: w.result,
+		LastFinished: w.lastFinished,
+		Stdout: w.stdout.GetAll(),
+		Stderr: w.stderr.GetAll(),
+	}
 }
 
 // GetConfig returns config of this repo
@@ -66,9 +81,9 @@ func (w *RsyncWorker) TriggerSync() {
 func (w *RsyncWorker) RunSync() {
 	for {
 		w.logger.Debug("start waiting for signal")
-		w.status.Idle = true
+		w.idle = true
 		<-w.signal
-		w.status.Idle = false
+		w.idle = false
 		w.logger.Debug("finished waiting for signal")
 		src, _ := w.cfg["source"]
 		dst, _ := w.cfg["path"]
@@ -98,23 +113,23 @@ func (w *RsyncWorker) RunSync() {
 
 		if err != nil {
 			w.logger.Error("rsync cannot start")
-			w.status.Result = false
-			w.status.Idle = true
+			w.result = false
+			w.idle = true
 			continue
 		}
 		err = cmd.Wait()
 		if err != nil {
 			w.logger.Error("rsync failed")
-			w.status.Result = false
-			w.status.Idle = true
+			w.result = false
+			w.idle = true
 			continue
 		}
 		w.logger.Info("succeed")
 		w.logger.Infof("Stderr: %s", bufErr.String())
-		w.status.Stderr = append(w.status.Stderr, bufErr.String())
+		w.stderr.Put(bufErr.String())
 		w.logger.Debugf("Stdout: %s", bufOut.String())
-		w.status.Stdout = append(w.status.Stdout, bufOut.String())
-		w.status.Result = true
-		w.status.LastFinished = time.Now()
+		w.stdout.Put(bufOut.String())
+		w.result = true
+		w.lastFinished = time.Now()
 	}
 }

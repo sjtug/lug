@@ -2,9 +2,9 @@
 package manager
 
 import (
+	log "github.com/Sirupsen/logrus"
 	"strconv"
 	"time"
-	log "github.com/Sirupsen/logrus"
 
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/worker"
@@ -76,7 +76,12 @@ func (m *Manager) Run() {
 				log.Info("Start polling workers")
 				for i, worker := range m.workers {
 					wStatus := worker.GetStatus()
-					log.Debugf("worker %d: %+v", i, wStatus)
+					log.Debugf("worker %d: Idle: %v. Result: %v. Last finished: %v",
+						i,
+						wStatus.Idle,
+						wStatus.Result,
+						wStatus.LastFinished,
+					)
 					if !wStatus.Idle {
 						continue
 					}
