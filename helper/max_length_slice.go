@@ -12,10 +12,12 @@ type MaxLengthStringSliceAdaptor struct {
 
 // NewMaxLengthStringSliceAdaptor creates an adaptor for given string slice
 func NewMaxLengthStringSliceAdaptor(s []string, maxlen int) *MaxLengthStringSliceAdaptor {
-	return &MaxLengthStringSliceAdaptor{
+	result := &MaxLengthStringSliceAdaptor{
 		s:      s,
 		maxlen: maxlen,
 	}
+	result.removeExceededItems()
+	return result
 }
 
 // MaxLen returns the maximum length of given maxlenslice
@@ -23,14 +25,19 @@ func (m MaxLengthStringSliceAdaptor) MaxLen() int {
 	return m.maxlen
 }
 
+// Use it when you acquire the lock
+func (m *MaxLengthStringSliceAdaptor) removeExceededItems() {
+	if len(m.s) > m.MaxLen() {
+		m.s = m.s[len(m.s)-m.MaxLen():]
+	}
+}
+
 // Put adds a new item into slice, and may remove exceeded item(s)
 func (m *MaxLengthStringSliceAdaptor) Put(str string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	m.s = append(m.s, str)
-	if len(m.s) > m.MaxLen() {
-		m.s = m.s[1:]
-	}
+	m.removeExceededItems()
 }
 
 // GetAll creates a duplicate of current slice and returns it
