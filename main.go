@@ -10,6 +10,7 @@ import (
 	"github.com/bshuster-repo/logrus-logstash-hook"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/manager"
+	"github.com/goji/httpauth"
 )
 
 const (
@@ -42,6 +43,8 @@ type CommandFlags struct {
 	jsonAPIAddr string
 	certFile    string
 	keyFile     string
+	apiUser     string
+	apiPassword string
 }
 
 // parse command line options and return CommandFlags
@@ -53,6 +56,8 @@ func getFlags() (flags CommandFlags) {
 	flag.StringVar(&flags.jsonAPIAddr, "j", ":7001", "JSON API Address")
 	flag.StringVar(&flags.certFile, "cert", "", "HTTPS Cert file of JSON API")
 	flag.StringVar(&flags.keyFile, "key", "", "HTTPS Key file of JSON API")
+	flag.StringVar(&flags.apiUser, "u", "", "User for authentication of JSON API")
+	flag.StringVar(&flags.apiPassword, "p", "", "Password for authentication of JSON API")
 	flag.Parse()
 	return
 }
@@ -104,13 +109,25 @@ func main() {
 		panic(err)
 	}
 	jsonapi := manager.NewRestfulAPI(m)
+	handler := jsonapi.GetAPIHandler()
+	if flags.apiUser != "" && flags.apiPassword !="" {
+		auth := httpauth.BasicAuth(httpauth.AuthOptions{
+			Realm: "Require authentication",
+			User: flags.apiUser,
+			Password: flags.apiPassword,
+		})
+		handler = auth(handler)
+	}
 	if flags.keyFile == "" || flags.certFile == "" {
+		if flags.apiUser != "" && flags.apiPassword != "" {
+			log.Warn("JSON API with HTTP auth without TLS/SSL is vulnerable")
+		}
 		log.Infof("Http JSON API listening on %s", flags.jsonAPIAddr)
-		go http.ListenAndServe(flags.jsonAPIAddr, jsonapi.GetAPIHandler())
+		go http.ListenAndServe(flags.jsonAPIAddr, handler)
 	} else {
 		log.Infof("Https JSON API listening on %s with certfile %s and keyfile %s", flags.jsonAPIAddr,
 			flags.certFile, flags.keyFile)
-		go http.ListenAndServeTLS(flags.jsonAPIAddr, flags.certFile, flags.keyFile, jsonapi.GetAPIHandler())
+		go http.ListenAndServeTLS(flags.jsonAPIAddr, flags.certFile, flags.keyFile, handler)
 	}
 
 	m.Run()
