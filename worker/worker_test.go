@@ -5,30 +5,36 @@ import (
 
 	"github.com/sjtug/lug/config"
 	"github.com/stretchr/testify/assert"
+	"os/exec"
+	"io"
 )
+
+var rsyncW Worker
 
 func TestNewRsyncWorker(t *testing.T) {
 	assert := assert.New(t)
 
 	var c config.RepoConfig = make(map[string]string)
 	c["type"] = "rsync"
-	w, err := NewWorker(c)
+	var err error
+	rsyncW, err = NewWorker(c)
 
-	assert.Nil(w)
+	assert.Nil(rsyncW)
 	assert.NotNil(err)
 
 	c["name"] = "putty"
 	c["source"] = "source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/"
 	c["path"] = "/tmp/putty"
 	c["interval"] = "6"
-	w, _ = NewWorker(c)
+	c["rlimit_mem"] = "10M"
+	rsyncW, _ = NewWorker(c)
 
-	assert.True(w.GetStatus().Result)
-	assert.True(w.GetStatus().Idle)
-	assert.Equal("rsync", w.GetConfig()["type"])
-	assert.Equal("putty", w.GetConfig()["name"])
-	assert.Equal("source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/", w.GetConfig()["source"])
-	assert.Equal("/tmp/putty", w.GetConfig()["path"])
+	assert.True(rsyncW.GetStatus().Result)
+	assert.True(rsyncW.GetStatus().Idle)
+	assert.Equal("rsync", rsyncW.GetConfig()["type"])
+	assert.Equal("putty", rsyncW.GetConfig()["name"])
+	assert.Equal("source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/", rsyncW.GetConfig()["source"])
+	assert.Equal("/tmp/putty", rsyncW.GetConfig()["path"])
 
 }
 
@@ -47,4 +53,42 @@ func TestNewShellScriptWorker(t *testing.T) {
 	assert.Equal("shell", w.GetConfig()["name"])
 	assert.Equal("script", w.GetConfig()["script"])
 
+}
+
+type limitReader struct {
+	cnt int
+	limit int
+}
+
+func newLimitReader(limit int) *limitReader {
+	return &limitReader{
+		cnt: 0,
+		limit: limit,
+	}
+}
+func (i *limitReader) Read(p []byte) (int, error) {
+	if i.cnt > i.limit {
+		return 0, io.EOF
+	}
+	i.cnt += len(p)
+	for i:=0; i<len(p); i++ {
+		p[i] = 0
+	}
+	return len(p), nil
+}
+
+func TestUtilityRlimit(t *testing.T) {
+	assert := assert.New(t)
+	rlimitUtility := newRlimit(rsyncW)
+
+	cmd := exec.Command("rev")
+	cmd.Stdin = newLimitReader(20000000) // > 10M = 10485760
+	rlimitUtility.preHook()
+	err1 := cmd.Start()
+	rlimitUtility.postHook()
+	var err2 error
+	if err1 == nil {
+		err2 = cmd.Wait()
+	}
+	assert.True(err1 != nil || err2 != nil)
 }
