@@ -1,2 +1,2 @@
 #!/bin/bash
-godep save . ./manager ./worker ./config
+godep save . ./manager ./worker ./config ./helper
