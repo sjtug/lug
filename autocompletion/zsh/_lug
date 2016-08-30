@@ -1,0 +1,12 @@
+#compdef lug
+local -a options arguments
+#options=('-c:Path of config.yaml' '-cert:Cert for JSON API' '-key:Key for JSON API' '-j:JSON API Address' '-license:Prints license' '-v:Prints version of lug' '-h:Show help')
+#_describe 'values' options
+_arguments '-c[Path of config]:path_of_config:->config' '-cert[Cert for JSON API]:cert:_files' '-key[Key for JSON API]:key:_files' '-j[JSON API Address]:jaddr' '-license[License]' '-v[Version of lug]' '-h[Show help]'
+
+case "$state" in
+    config)
+        local -a configs
+        configs=( *.{yml,yaml} )
+        _multi_parts / configs
+esac
