@@ -7,7 +7,7 @@ import "sync"
 type MaxLengthStringSliceAdaptor struct {
 	s      []string
 	maxlen int
-	lock   sync.Mutex
+	lock   sync.RWMutex
 }
 
 // NewMaxLengthStringSliceAdaptor creates an adaptor for given string slice
@@ -42,8 +42,8 @@ func (m *MaxLengthStringSliceAdaptor) Put(str string) {
 
 // GetAll creates a duplicate of current slice and returns it
 func (m MaxLengthStringSliceAdaptor) GetAll() []string {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	result := make([]string, len(m.s))
 	copy(result, m.s)
 	return result
@@ -51,8 +51,8 @@ func (m MaxLengthStringSliceAdaptor) GetAll() []string {
 
 // Len returns current length of slice
 func (m MaxLengthStringSliceAdaptor) Len() int {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 	return len(m.s)
 }
 
