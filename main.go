@@ -74,8 +74,11 @@ func prepareLogger(logLevel log.Level, logStashAddr string) {
 	}
 }
 
-func main() {
-	flags := getFlags()
+var cfg config.Config
+var flags CommandFlags
+
+func init() {
+	flags = getFlags()
 
 	if flags.version {
 		fmt.Print(lugVersionInfo)
@@ -94,16 +97,17 @@ func main() {
 		return
 	}
 
-	cfg := config.Config{}
+	cfg = config.Config{}
 	err = cfg.Parse(dat)
 	prepareLogger(cfg.LogLevel, cfg.LogStashAddr)
-
 	log.Info("Starting...")
 	log.Debugf("%+v\n", cfg)
 	if err != nil {
 		panic(err)
 	}
+}
 
+func main() {
 	m, err := manager.NewManager(&cfg)
 	if err != nil {
 		panic(err)
