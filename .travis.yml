@@ -2,7 +2,7 @@ language: go
 
 go:
     - 1.6.2
-    - tip
+    - 1.7
 
 install:
     - go get github.com/stretchr/testify/assert
