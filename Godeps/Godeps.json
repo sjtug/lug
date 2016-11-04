@@ -4,8 +4,8 @@
 	"GodepVersion": "v74",
 	"Packages": [
 		".",
-		"./worker",
 		"./manager",
+		"./worker",
 		"./config"
 	],
 	"Deps": [
@@ -35,6 +35,10 @@
 		{
 			"ImportPath": "github.com/dustin/go-humanize",
 			"Rev": "2fcb5204cdc65b4bec9fd0a87606bb0d0e3c54e8"
+		},
+		{
+			"ImportPath": "github.com/goji/httpauth",
+			"Rev": "2da839ab0f4df05a6db5eb277995589dadbd4fb9"
 		},
 		{
 			"ImportPath": "github.com/pmezard/go-difflib/difflib",

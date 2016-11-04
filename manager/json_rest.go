@@ -6,16 +6,19 @@ import (
 	"net/http"
 )
 
+// RestfulAPI is a JSON-like API of given manager
 type RestfulAPI struct {
 	manager *Manager
 }
 
+// NewRestfulAPI returns a pointer to RestfulAPI of given manager
 func NewRestfulAPI(m *Manager) *RestfulAPI {
 	return &RestfulAPI{
 		manager: m,
 	}
 }
 
+// GetAPIHandler returns handler that could be used for http package
 func (r *RestfulAPI) GetAPIHandler() http.Handler {
 	api := rest.NewApi()
 	api.Use(rest.DefaultDevStack...)
@@ -36,7 +39,6 @@ func (r *RestfulAPI) getManagerStatus(w rest.ResponseWriter, req *rest.Request) 
 	status := r.manager.GetStatus()
 	w.WriteJson(status)
 }
-
 
 func (r *RestfulAPI) startManager(w rest.ResponseWriter, req *rest.Request) {
 	r.manager.Start()

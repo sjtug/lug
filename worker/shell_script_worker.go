@@ -7,22 +7,27 @@ import (
 	"os/exec"
 	"time"
 
+	"bytes"
 	log "github.com/Sirupsen/logrus"
 	"github.com/sjtug/lug/config"
-	"bytes"
+	"github.com/sjtug/lug/helper"
 )
 
 // ShellScriptWorker has Worker interface
 type ShellScriptWorker struct {
-	status    Status
-	cfg       config.RepoConfig
-	signal    chan int
-	logger    *log.Entry
-	utilities []utility
+	idle         bool
+	result       bool
+	lastFinished time.Time
+	stdout       *helper.MaxLengthStringSliceAdaptor
+	stderr       *helper.MaxLengthStringSliceAdaptor
+	cfg          config.RepoConfig
+	signal       chan int
+	logger       *log.Entry
+	utilities    []utility
 }
 
 // NewShellScriptWorker returns a shell script worker
-func NewShellScriptWorker(status *Status,
+func NewShellScriptWorker(status Status,
 	cfg config.RepoConfig,
 	signal chan int) (*ShellScriptWorker, error) {
 	_, ok := cfg["name"]
@@ -34,11 +39,15 @@ func NewShellScriptWorker(status *Status,
 		return nil, errors.New("No script in config")
 	}
 	w := &ShellScriptWorker{
-		status:    *status,
-		cfg:       cfg,
-		signal:    signal,
-		logger:	log.WithField("worker", cfg["name"]),
-		utilities: []utility{},
+		idle:         status.Idle,
+		result:       status.Result,
+		lastFinished: status.LastFinished,
+		stdout:       helper.NewMaxLengthSlice(status.Stdout, 200),
+		stderr:       helper.NewMaxLengthSlice(status.Stderr, 200),
+		cfg:          cfg,
+		signal:       signal,
+		logger:       log.WithField("worker", cfg["name"]),
+		utilities:    []utility{},
 	}
 	w.utilities = append(w.utilities, newRlimit(w))
 	return w, nil
@@ -47,7 +56,13 @@ func NewShellScriptWorker(status *Status,
 
 // GetStatus returns a snapshot of current status
 func (w *ShellScriptWorker) GetStatus() Status {
-	return w.status
+	return Status{
+		Idle: w.idle,
+		Result: w.result,
+		LastFinished: w.lastFinished,
+		Stdout: w.stdout.GetAll(),
+		Stderr: w.stderr.GetAll(),
+	}
 }
 
 // GetConfig returns config of this repo.
@@ -64,9 +79,9 @@ func (w *ShellScriptWorker) TriggerSync() {
 func (w *ShellScriptWorker) RunSync() {
 	for {
 		w.logger.Debug("start waiting for signal")
-		w.status.Idle = true
+		w.idle = true
 		<-w.signal
-		w.status.Idle = false
+		w.idle = false
 		w.logger.Debug("finished waiting for signal")
 		script, _ := w.cfg["script"]
 		cmd := exec.Command(script)
@@ -101,23 +116,23 @@ func (w *ShellScriptWorker) RunSync() {
 		}
 		if err != nil {
 			w.logger.Error("execution cannot start")
-			w.status.Result = false
-			w.status.Idle = true
+			w.result = false
+			w.idle = true
 			continue
 		}
 		err = cmd.Wait()
 		if err != nil {
 			w.logger.Error("execution failed")
-			w.status.Result = false
-			w.status.Idle = true
+			w.result = false
+			w.idle = true
 			continue
 		}
 		w.logger.Info("succeed")
 		w.logger.Infof("Stderr: %s", bufErr.String())
-		w.status.Stderr = append(w.status.Stderr, bufErr.String())
+		w.stderr.Put(bufErr.String())
 		w.logger.Debugf("Stdout: %s", bufOut.String())
-		w.status.Stdout = append(w.status.Stdout, bufOut.String())
-		w.status.Result = true
-		w.status.LastFinished = time.Now()
+		w.stdout.Put(bufOut.String())
+		w.result = true
+		w.lastFinished = time.Now()
 	}
 }
