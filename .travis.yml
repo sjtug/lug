@@ -9,3 +9,12 @@ install:
     - go get github.com/sjtug/lug
 
 script: go test github.com/sjtug/lug/worker github.com/sjtug/lug/manager github.com/sjtug/lug/config github.com/sjtug/lug/helper
+    
+
+deploy:
+    provider: releases
+    api_key: "9a558480e786be2551d07792b3708c306bfe1d2b"
+    file: "$GOPATH/bin/lug"
+    skip_cleanup: true
+    on:
+        tags: true
