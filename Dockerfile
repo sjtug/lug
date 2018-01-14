@@ -1,6 +1,9 @@
-FROM debian
+FROM golang:1.9
 MAINTAINER Zheng Luo <vicluo96@gmail.com>
 RUN apt-get update && apt-get install rsync -y
-COPY ./lug /lug
-WORKDIR /
-ENTRYPOINT "/lug"
+WORKDIR /go/src/github.com/sjtug/lug
+COPY . .
+RUN curl https://glide.sh/get | sh
+RUN glide install
+RUN go-wrapper install
+CMD ["go-wrapper", "run"] # ["app"]

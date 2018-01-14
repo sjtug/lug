@@ -1,14 +1,14 @@
 # lug 
 [![release](https://img.shields.io/github/release/sjtug/lug.svg)](https://github.com/sjtug/lug/releases)
 [![Build Status](https://travis-ci.org/sjtug/lug.svg)](https://travis-ci.org/sjtug/lug)
-[![Docker pulls](https://img.shields.io/docker/pulls/sjtug/lug.svg)](https://hub.docker.com/r/sjtug/lug/)
+[![Docker pulls](https://img.shields.io/docker/pulls/htfy96/lug.svg)](https://hub.docker.com/r/htfy96/lug/)
 [![Apache License](https://img.shields.io/github/license/sjtug/lug.svg)](https://github.com/sjtug/lug/blob/master/LICENSE)
 
 Extensible backend of software mirror. Read our [Wiki](https://github.com/sjtug/lug/wiki) for usage and guides for developmenet.
 
 ## Use it in docker
 ```
-docker run -d -v {{host_path}}:{{docker_path}} -v {{absolute_path_of_config.yaml}}:/config.yaml sjtug/lug {other args...}
+docker run -d -v {{host_path}}:{{docker_path}} -v {{absolute_path_of_config.yaml}}:/go/src/github.com/sjtug/lug/config.yaml htfy96/lug {other args...}
 ```
 
 ### config.yaml
@@ -29,18 +29,16 @@ repos:
 
 ## Development
 
-Contributors should push to `dev` branch. Reviewed code will be merged to `master` branch.
+Contributors should push to their own branch. Reviewed code will be merged to `master` branch.
 
-1. set your `GOPATH` to a directory: `export GOPATH=/home`
+Currently this project assumes Go >= 1.8.
+
+1. set your `GOPATH` to a directory: `export GOPATH=/home/go`. Set `$GOPATH/bin` to your `$PATH`: `export PATH=$PATH:$GOPATH/bin`
 2. `go get github.com/sjtug/lug`
-3. `cd $GOPATH/src/github.com/sjtug/lug && git checkout dev`
-4. Modify code, then use native `go build`(>=1.6, or 1.5 with `GO15VENDOREXPERIMENT` env var set) or `godep go build`(<=1.4) after installing [Godep](https://github.com/tools/godep) to build it
-5. Run `scripts/gen_license.sh` and `scripts/savedep.sh`(with Godep installed) before committing your code
+3. Install glide by `curl https://glide.sh/get | sh`
+3. `cd $GOPATH/src/github.com/sjtug/lug && glide install`
+4. Modify code, then use `go build .` to build binary, or test with `go test $(go list ./... | grep -v /vendor/)`
+5. Run `scripts/gen_license.sh` before committing your code
 
 NOTICE: Please attach test files when contributing to your module
-
-Used package:
- - **Logging**: `github.com/op/go-logging` (Singleton)
- - **Test**: Builtin `testing` package and `github.com/stretchr/testify/assert`
- - **Yaml**: `gopkg.in/yaml.v2`
 
