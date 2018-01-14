@@ -5,4 +5,5 @@ WORKDIR /go/src/github.com/sjtug/lug
 COPY . .
 RUN curl https://glide.sh/get | sh
 RUN glide install
+RUN go-wrapper install
 CMD ["go-wrapper", "run"] # ["app"]
