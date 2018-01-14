@@ -1,0 +1,8 @@
+interval: 3 # Interval between pollings
+loglevel: 5 # 1-5
+repos:
+    - type: rsync
+      source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/
+      interval: 6
+      path: /tmp/putty
+      name: putty
