@@ -1,19 +1,18 @@
 language: go
 go:
-    - 1.8.x
-    - 1.9.x
+- 1.8.x
+- 1.9.x
 install:
-    - curl https://glide.sh/get | sh
-    - glide install
-    - go build .
- 
+- curl https://glide.sh/get | sh
+- glide install
+- go build .
 script:
-    - go test $(go list ./... | grep -v /vendor/)
+- go test $(go list ./... | grep -v /vendor/)
 deploy:
-    provider: releases
-    api_key:
-        secure: pGrUkV9wNbxFbBhAYJA9FgJ+S7id2+Inz/MH8zEg0m6NqwKx4KGZ+bohbZwHTjHz1jwLmBVPAk9oa7L3AWhkiHzpAAHHigtxpDlPB9uHC5kRfVYOHyn+/LgqbOdcZm506R2gCORFWz94U+U8hnUs41Z2kHjnaQfgctHgO1rFhq3DyZIHgVYCU6J2r+Bqik/SSsZGbpaVWCtgJ3b9NLnf5w641pPQllX6kClQvQQZ4SIGzXcSC/xfbSuvIvJbCbXmCBxjggl+oVaMCIt2JMDS+OgKsyjoiN7vUVXMWqvEq9mCHTmTpc01jOSnIb0drgITWuxZrpObvtq0Yfksgh/CwvgDy9xRojUMot6zXcRUM+vuEL5sY0H9Da8X6DW5pVQPx0QIFkUWDrAjUghsrgHJqsPnkFLHP/Q+wnUAnuMNsKwPIcjYfcrgGFfvIuecJLlvDIc5k3VOUYKzrk+XQnL5AlggY1iNsJfxk+Dfa909XrtFiVnjfiJXWIgbPFqSp7/r6f67BDjP1jwuxjzLr5ocCFrwiAqTIIPhfVj9m4N518dU8TjxS83onTzp5EciKkRYfY8IOmYDgcxTMBu/u/g8Sx821ijf9lqsF3ScN33AQrxleKn8yN7X155I5mjb5koLvNm8LheR4LPFxtmvLD0a8QQFcaS48lLtvNPvYQo1suc=
-    file: "./lug"
-    on:
-        repo: sjtug/lug
-        tags: true
+  provider: releases
+  api_key:
+    secure: lNGCitYvLHZF6w5rFitZrTCS5wCcfobNlwkfTJkdKOgfgPOhC2MYUpWXjcDXQ+RIJlGsEYjahjjcLKGGh6yguYsfvpAFReii+uFRR1Ep+jZt4iNOBf0hFuD3KpsspVrf9dkRQqYBk+i/73+Ola3hqdiE9qNqTVHB67VjBy6U6hmeXjmfbYXHcwD6J7UwIopyVv9mkGRCn+o7hkzZL7zQuZ5Y/dwBpZvKSLQS5wrD4tspmMAWnqxbLnii5c3G4mLMdXI8MITAmN1W3EJS1hrdpe12qO/z+/MJ4H0/UeDuXOmUOQjYNUTxVctoss+BCyIGJFh8ulvYL37+eTobn0XIFnccWBZQ2YAvLn2H4/BqbgsM/0/CfVxf3MVynPayXLvH+J8uPtA1GFcywZjScF6oHHZilWmIcsqEg4/16jRiRkMHpqVbUw4XeuoE+qA9Moy1DtBYTnEZC8fiokHygJjGo/i3eeMZ461BxL2RHbfWK8VF8Uwb0sQXeGozpcwPbl+W+uqXQCETwJ0wdZTs04lae62u49RxW4zSnDb2rB/D2aJBzr9KFjT5aeZkMd2+Qpsc2hbN5dZvtkf2J/9tgSUT+7pJYXPZvqSCIqHgx2xdF/GYCCmunARVw0yREn5XC/vJb4sWwtps9xcICHw+tfYdePJ0z7rlFWt6n77/GxS71WE=
+  file: "./lug"
+  on:
+    repo: sjtug/lug
+    tags: true
