@@ -1,17 +1,19 @@
 language: go
 go:
-- 1.6.2
-- 1.7
+    - 1.8
+    - 1.9
 install:
-- go get github.com/stretchr/testify/assert
-- go get github.com/sjtug/lug
-script: go test github.com/sjtug/lug/worker github.com/sjtug/lug/manager github.com/sjtug/lug/config
-  github.com/sjtug/lug/helper
+    - curl https://glide.sh/get | sh
+    - glide install
+    - go build .
+ 
+script:
+    - go test $(go list ./... | grep -v /vendor/)
 deploy:
-  provider: releases
-  api_key:
-    secure: pGrUkV9wNbxFbBhAYJA9FgJ+S7id2+Inz/MH8zEg0m6NqwKx4KGZ+bohbZwHTjHz1jwLmBVPAk9oa7L3AWhkiHzpAAHHigtxpDlPB9uHC5kRfVYOHyn+/LgqbOdcZm506R2gCORFWz94U+U8hnUs41Z2kHjnaQfgctHgO1rFhq3DyZIHgVYCU6J2r+Bqik/SSsZGbpaVWCtgJ3b9NLnf5w641pPQllX6kClQvQQZ4SIGzXcSC/xfbSuvIvJbCbXmCBxjggl+oVaMCIt2JMDS+OgKsyjoiN7vUVXMWqvEq9mCHTmTpc01jOSnIb0drgITWuxZrpObvtq0Yfksgh/CwvgDy9xRojUMot6zXcRUM+vuEL5sY0H9Da8X6DW5pVQPx0QIFkUWDrAjUghsrgHJqsPnkFLHP/Q+wnUAnuMNsKwPIcjYfcrgGFfvIuecJLlvDIc5k3VOUYKzrk+XQnL5AlggY1iNsJfxk+Dfa909XrtFiVnjfiJXWIgbPFqSp7/r6f67BDjP1jwuxjzLr5ocCFrwiAqTIIPhfVj9m4N518dU8TjxS83onTzp5EciKkRYfY8IOmYDgcxTMBu/u/g8Sx821ijf9lqsF3ScN33AQrxleKn8yN7X155I5mjb5koLvNm8LheR4LPFxtmvLD0a8QQFcaS48lLtvNPvYQo1suc=
-  file: "$GOPATH/bin/lug"
-  on:
-    repo: sjtug/lug
-    tags: true
+    provider: releases
+    api_key:
+        secure: pGrUkV9wNbxFbBhAYJA9FgJ+S7id2+Inz/MH8zEg0m6NqwKx4KGZ+bohbZwHTjHz1jwLmBVPAk9oa7L3AWhkiHzpAAHHigtxpDlPB9uHC5kRfVYOHyn+/LgqbOdcZm506R2gCORFWz94U+U8hnUs41Z2kHjnaQfgctHgO1rFhq3DyZIHgVYCU6J2r+Bqik/SSsZGbpaVWCtgJ3b9NLnf5w641pPQllX6kClQvQQZ4SIGzXcSC/xfbSuvIvJbCbXmCBxjggl+oVaMCIt2JMDS+OgKsyjoiN7vUVXMWqvEq9mCHTmTpc01jOSnIb0drgITWuxZrpObvtq0Yfksgh/CwvgDy9xRojUMot6zXcRUM+vuEL5sY0H9Da8X6DW5pVQPx0QIFkUWDrAjUghsrgHJqsPnkFLHP/Q+wnUAnuMNsKwPIcjYfcrgGFfvIuecJLlvDIc5k3VOUYKzrk+XQnL5AlggY1iNsJfxk+Dfa909XrtFiVnjfiJXWIgbPFqSp7/r6f67BDjP1jwuxjzLr5ocCFrwiAqTIIPhfVj9m4N518dU8TjxS83onTzp5EciKkRYfY8IOmYDgcxTMBu/u/g8Sx821ijf9lqsF3ScN33AQrxleKn8yN7X155I5mjb5koLvNm8LheR4LPFxtmvLD0a8QQFcaS48lLtvNPvYQo1suc=
+    file: "./lug"
+    on:
+        repo: sjtug/lug
+        tags: true
