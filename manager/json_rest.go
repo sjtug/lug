@@ -4,6 +4,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ant0ine/go-json-rest/rest"
 	"net/http"
+	"time"
 )
 
 // RestfulAPI is a JSON-like API of given manager
@@ -23,7 +24,8 @@ func (r *RestfulAPI) GetAPIHandler() http.Handler {
 	api := rest.NewApi()
 	api.Use(rest.DefaultDevStack...)
 	router, err := rest.MakeRouter(
-		rest.Get("/lug/v1/manager", r.getManagerStatus),
+		rest.Get("/lug/v1/manager", r.getManagerStatusDetail),
+		rest.Get("/lug/v1/manager/summary", r.getManagerStatusSummary),
 		rest.Post("/lug/v1/manager/start", r.startManager),
 		rest.Post("/lug/v1/manager/stop", r.stopManager),
 		rest.Delete("/lug/v1/manager", r.exitManager),
@@ -35,9 +37,47 @@ func (r *RestfulAPI) GetAPIHandler() http.Handler {
 	return api.MakeHandler()
 }
 
-func (r *RestfulAPI) getManagerStatus(w rest.ResponseWriter, req *rest.Request) {
-	status := r.manager.GetStatus()
-	w.WriteJson(status)
+type WorkerStatusSimple struct {
+	// Result is true if sync succeed, else false
+	Result bool
+	// LastFinished indicates last success time
+	LastFinished time.Time
+	// Idle stands for whether worker is idle, false if syncing
+	Idle bool
+}
+
+type MangerStatusSimple struct {
+	Running      bool
+	WorkerStatus map[string]WorkerStatusSimple
+}
+
+func (r *RestfulAPI) getManagerStatusCommon(w rest.ResponseWriter, req *rest.Request, detailed bool) {
+	raw_status := r.manager.GetStatus()
+	if detailed {
+		w.WriteJson(raw_status)
+		return
+	}
+	manager_status_simple := MangerStatusSimple{
+		Running:      raw_status.Running,
+		WorkerStatus: map[string]WorkerStatusSimple{},
+	}
+	// summary mode
+	for worker_key, raw_worker_status := range raw_status.WorkerStatus {
+		manager_status_simple.WorkerStatus[worker_key] = WorkerStatusSimple{
+			Result:       raw_worker_status.Result,
+			LastFinished: raw_worker_status.LastFinished,
+			Idle:         raw_worker_status.Idle,
+		}
+	}
+	w.WriteJson(manager_status_simple)
+}
+
+func (r *RestfulAPI) getManagerStatusDetail(w rest.ResponseWriter, req *rest.Request) {
+	r.getManagerStatusCommon(w, req, true)
+}
+
+func (r *RestfulAPI) getManagerStatusSummary(w rest.ResponseWriter, req *rest.Request) {
+	r.getManagerStatusCommon(w, req, false)
 }
 
 func (r *RestfulAPI) startManager(w rest.ResponseWriter, req *rest.Request) {
