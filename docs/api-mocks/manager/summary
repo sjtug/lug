@@ -1,0 +1,20 @@
+{
+  "Running": true,
+  "WorkerStatus": {
+    "putty": {
+      "Result": true,
+      "LastFinished": "2018-01-16T21:45:56.27813641+08:00",
+      "Idle": false
+    },
+    "vim": {
+      "Result": false,
+      "LastFinished": "2018-01-16T21:45:53.27813641+08:00",
+      "Idle": true
+    },
+    "docker": {
+      "Result": true,
+      "LastFinished": "2018-01-16T21:45:51.27813641+08:00",
+      "Idle": true
+    }
+  }
+}
