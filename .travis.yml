@@ -19,3 +19,4 @@ deploy:
   on:
     repo: sjtug/lug
     tags: true
+    condition: "$(go version | grep go1.9)"
