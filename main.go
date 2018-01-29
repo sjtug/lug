@@ -10,6 +10,7 @@ import (
 	"github.com/bshuster-repo/logrus-logstash-hook"
 	"github.com/goji/httpauth"
 	"github.com/sjtug/lug/config"
+	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/manager"
 )
 
@@ -134,6 +135,6 @@ func main() {
 		go http.ListenAndServeTLS(flags.jsonAPIAddr, flags.certFile, flags.keyFile, handler)
 	}
 
+	go exporter.Expose(":8080")
 	m.Run()
-
 }

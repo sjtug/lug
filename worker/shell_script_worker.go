@@ -11,6 +11,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/helper"
+	"github.com/sjtug/lug/exporter"
 )
 
 // ShellScriptWorker has Worker interface
@@ -21,6 +22,7 @@ type ShellScriptWorker struct {
 	stdout       *helper.MaxLengthStringSliceAdaptor
 	stderr       *helper.MaxLengthStringSliceAdaptor
 	cfg          config.RepoConfig
+	name         string
 	signal       chan int
 	logger       *log.Entry
 	utilities    []utility
@@ -46,6 +48,7 @@ func NewShellScriptWorker(status Status,
 		stderr:       helper.NewMaxLengthSlice(status.Stderr, 200),
 		cfg:          cfg,
 		signal:       signal,
+		name:         cfg["name"],
 		logger:       log.WithField("worker", cfg["name"]),
 		utilities:    []utility{},
 	}
@@ -122,11 +125,13 @@ func (w *ShellScriptWorker) RunSync() {
 		}
 		err = cmd.Wait()
 		if err != nil {
+			exporter.GetInstance().SyncFail(w.name)
 			w.logger.Error("execution failed")
 			w.result = false
 			w.idle = true
 			continue
 		}
+		exporter.GetInstance().SyncSuccess(w.name)
 		w.logger.Info("succeed")
 		w.logger.Infof("Stderr: %s", bufErr.String())
 		w.stderr.Put(bufErr.String())

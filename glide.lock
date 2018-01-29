@@ -1,11 +1,15 @@
-hash: 3800f1f2354582464e34911dfbb92a40f4f9d9888eb8c6d3a322ecc3cd6d743e
-updated: 2018-01-14T20:54:34.552979656+08:00
+hash: a5b447f471772232fe70aa83e4cf7eec38c00fe5581327c55fb2be62bc61653b
+updated: 2018-01-29T17:59:29.567458566+08:00
 imports:
 - name: github.com/ant0ine/go-json-rest
   version: 3a807d6d8d36e0f9175d6c292030fce09bcbb2db
   subpackages:
   - rest
   - rest/trie
+- name: github.com/beorn7/perks
+  version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
+  subpackages:
+  - quantile
 - name: github.com/bshuster-repo/logrus-logstash-hook
   version: f8b7f00a4feb2088e5f7290f1c9360d1081ba0b5
 - name: github.com/davecgh/go-spew
@@ -16,10 +20,39 @@ imports:
   version: 2fcb5204cdc65b4bec9fd0a87606bb0d0e3c54e8
 - name: github.com/goji/httpauth
   version: 2da839ab0f4df05a6db5eb277995589dadbd4fb9
+- name: github.com/golang/protobuf
+  version: 925541529c1fa6821df4e44ce2723319eb2be768
+  subpackages:
+  - proto
+- name: github.com/matttproud/golang_protobuf_extensions
+  version: c12348ce28de40eed0136aa2b644d0ee0650e56c
+  subpackages:
+  - pbutil
 - name: github.com/pmezard/go-difflib
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
+- name: github.com/prometheus/client_golang
+  version: 967789050ba94deca04a5e84cce8ad472ce313c1
+  subpackages:
+  - prometheus
+  - prometheus/promhttp
+- name: github.com/prometheus/client_model
+  version: 99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c
+  subpackages:
+  - go
+- name: github.com/prometheus/common
+  version: 89604d197083d4781071d3c65855d24ecfb0a563
+  subpackages:
+  - expfmt
+  - internal/bitbucket.org/ww/goautoneg
+  - model
+- name: github.com/prometheus/procfs
+  version: cb4147076ac75738c9a7d279075a253c0cc5acbd
+  subpackages:
+  - internal/util
+  - nfs
+  - xfs
 - name: github.com/Sirupsen/logrus
   version: a283a10442df8dc09befd873fab202bf8a253d6a
 - name: github.com/stretchr/testify

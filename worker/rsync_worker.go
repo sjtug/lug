@@ -9,11 +9,13 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/helper"
+	"github.com/sjtug/lug/exporter"
 )
 
 // RsyncWorker implements Worker interface
 type RsyncWorker struct {
 	cfg          config.RepoConfig
+	name         string
 	signal       chan int
 	logger       *log.Entry
 	utilities    []utility
@@ -50,6 +52,7 @@ func NewRsyncWorker(status Status,
 		cfg:          cfg,
 		signal:       signal,
 		utilities:    []utility{},
+		name:         cfg["name"],
 		logger:       log.WithField("worker", cfg["name"]),
 	}
 	w.utilities = append(w.utilities, newRlimit(w))
@@ -119,11 +122,13 @@ func (w *RsyncWorker) RunSync() {
 		}
 		err = cmd.Wait()
 		if err != nil {
+			exporter.GetInstance().SyncFail(w.name)
 			w.logger.Error("rsync failed")
 			w.result = false
 			w.idle = true
 			continue
 		}
+		exporter.GetInstance().SyncSuccess(w.name)
 		w.logger.Info("succeed")
 		w.logger.Infof("Stderr: %s", bufErr.String())
 		w.stderr.Put(bufErr.String())
