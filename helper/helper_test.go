@@ -53,3 +53,10 @@ func TestMaxLengthSlice(t *testing.T) {
 	assert.True(reflect.DeepEqual([]string{"bar", "2", "3"}, mlss.GetAll()))
 	assert.True(reflect.DeepEqual([]string{"foo", "foobar"}, raw))
 }
+
+func TestDiskUsage(t *testing.T) {
+	assert := assert.New(t)
+	size, err := DiskUsage(".")
+	assert.True(err == nil)
+	assert.True(size > 0)
+}

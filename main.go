@@ -10,6 +10,7 @@ import (
 	"github.com/bshuster-repo/logrus-logstash-hook"
 	"github.com/goji/httpauth"
 	"github.com/sjtug/lug/config"
+	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/manager"
 )
 
@@ -22,6 +23,7 @@ Visit https://github.com/sjtug/lug for latest version`
 Example:
 interval: 3 # Interval between pollings
 loglevel: 5 # 1-5
+exporter_address: :8081
 repos:
     - type: rsync
       source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/
@@ -37,14 +39,15 @@ repos:
 
 // CommandFlags stores parsed flags from command line
 type CommandFlags struct {
-	configFile  string
-	version     bool
-	license     bool
-	jsonAPIAddr string
-	certFile    string
-	keyFile     string
-	apiUser     string
-	apiPassword string
+	configFile   string
+	version      bool
+	license      bool
+	jsonAPIAddr  string
+	exporterAddr string
+	certFile     string
+	keyFile      string
+	apiUser      string
+	apiPassword  string
 }
 
 // parse command line options and return CommandFlags
@@ -54,6 +57,7 @@ func getFlags() (flags CommandFlags) {
 	flag.BoolVar(&flags.license, "license", false, "Prints license of used libraries")
 	flag.BoolVar(&flags.version, "v", false, "Prints version of lug")
 	flag.StringVar(&flags.jsonAPIAddr, "j", ":7001", "JSON API Address")
+	flag.StringVar(&flags.exporterAddr, "e", "", "Exporter Address")
 	flag.StringVar(&flags.certFile, "cert", "", "HTTPS Cert file of JSON API")
 	flag.StringVar(&flags.keyFile, "key", "", "HTTPS Key file of JSON API")
 	flag.StringVar(&flags.apiUser, "u", "", "User for authentication of JSON API")
@@ -134,6 +138,9 @@ func main() {
 		go http.ListenAndServeTLS(flags.jsonAPIAddr, flags.certFile, flags.keyFile, handler)
 	}
 
+	if flags.exporterAddr != "" {
+		cfg.ExporterAddr = flags.exporterAddr
+	}
+	go exporter.Expose(cfg.ExporterAddr)
 	m.Run()
-
 }
