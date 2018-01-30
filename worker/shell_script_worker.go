@@ -57,11 +57,11 @@ func NewShellScriptWorker(status Status,
 // GetStatus returns a snapshot of current status
 func (w *ShellScriptWorker) GetStatus() Status {
 	return Status{
-		Idle: w.idle,
-		Result: w.result,
+		Idle:         w.idle,
+		Result:       w.result,
 		LastFinished: w.lastFinished,
-		Stdout: w.stdout.GetAll(),
-		Stderr: w.stderr.GetAll(),
+		Stdout:       w.stdout.GetAll(),
+		Stderr:       w.stderr.GetAll(),
 	}
 }
 
