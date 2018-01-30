@@ -64,7 +64,7 @@ func GetInstance() *Exporter {
 func Expose(addr string) {
 	GetInstance() // ensure init
 	http.Handle("/metrics", promhttp.Handler())
-	log.Info("Metrics exposed")
+	log.Info("Metrics exposed at " + addr + "/metrics")
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
 

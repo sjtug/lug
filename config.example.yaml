@@ -1,5 +1,6 @@
 interval: 3 # Interval between pollings
 loglevel: 5 # 1-5
+exporter_address: :8081
 repos:
     - type: rsync
       source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/

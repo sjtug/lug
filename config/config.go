@@ -19,6 +19,8 @@ type Config struct {
 	LogLevel log.Level
 	// LogStashAddr represents the address of logstash
 	LogStashAddr string
+	// ExporterAddr is the address to expose metrics, :8080 for default
+	ExporterAddr string `yaml:"exporter_address"`
 	// Config for each repo is represented as an array of RepoConfig
 	Repos []RepoConfig
 }
@@ -32,6 +34,9 @@ func (c *Config) Parse(in []byte) (err error) {
 		}
 		if c.LogLevel < 0 || c.LogLevel > 5 {
 			return errors.New("loglevel must be 0-5")
+		}
+		if c.ExporterAddr == "" {
+			c.ExporterAddr = ":8080"
 		}
 	}
 	return err
