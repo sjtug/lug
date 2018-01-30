@@ -1,5 +1,6 @@
 # lug 
 [![release](https://img.shields.io/github/release/sjtug/lug.svg)](https://github.com/sjtug/lug/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/sjtug/lug)](https://goreportcard.com/report/github.com/sjtug/lug)
 [![Build Status](https://travis-ci.org/sjtug/lug.svg)](https://travis-ci.org/sjtug/lug)
 [![Docker pulls](https://img.shields.io/docker/pulls/htfy96/lug.svg)](https://hub.docker.com/r/htfy96/lug/)
 [![Apache License](https://img.shields.io/github/license/sjtug/lug.svg)](https://github.com/sjtug/lug/blob/master/LICENSE)
