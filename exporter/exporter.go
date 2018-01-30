@@ -2,25 +2,25 @@
 package exporter
 
 import (
-	"net/http"
-	"github.com/sjtug/lug/helper"
 	log "github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sjtug/lug/helper"
+	"net/http"
 )
 
 // Exporter exports lug metrics to Prometheus
 type Exporter struct {
 	successCounter *prometheus.CounterVec
-	failCounter *prometheus.CounterVec
-	diskUsage *prometheus.GaugeVec
+	failCounter    *prometheus.CounterVec
+	diskUsage      *prometheus.GaugeVec
 }
 
 var instance *Exporter
 
 // newExporter creates a new exporter
 func newExporter() *Exporter {
-	newExporter := Exporter {
+	newExporter := Exporter{
 		successCounter: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "success_sync",

@@ -10,8 +10,8 @@ import (
 	"bytes"
 	log "github.com/Sirupsen/logrus"
 	"github.com/sjtug/lug/config"
-	"github.com/sjtug/lug/helper"
 	"github.com/sjtug/lug/exporter"
+	"github.com/sjtug/lug/helper"
 )
 
 // ShellScriptWorker has Worker interface
