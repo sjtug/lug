@@ -3,10 +3,9 @@ package exporter
 
 import (
 	"net/http"
-
+	"github.com/sjtug/lug/helper"
 	log "github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -41,7 +40,7 @@ func newExporter() *Exporter {
 				Namespace: "lug",
 				Subsystem: "storage",
 				Name:      "disk_usage",
-				Help:      "Disk usage, partitioned by workers.",
+				Help:      "Disk usage in bytes, partitioned by workers.",
 			},
 			[]string{"worker"},
 		),
@@ -77,4 +76,12 @@ func (e *Exporter) SyncSuccess(worker string) {
 // SyncFail will report a failed synchronization
 func (e *Exporter) SyncFail(worker string) {
 	e.failCounter.With(prometheus.Labels{"worker": worker}).Inc()
+}
+
+// UpdateDiskUsage will update the disk usage of a directory
+func (e *Exporter) UpdateDiskUsage(worker string, path string) {
+	size, err := helper.DiskUsage(path)
+	if err == nil {
+		e.diskUsage.With(prometheus.Labels{"worker": worker}).Set(float64(size))
+	}
 }

@@ -123,12 +123,14 @@ func (w *RsyncWorker) RunSync() {
 		err = cmd.Wait()
 		if err != nil {
 			exporter.GetInstance().SyncFail(w.name)
+			exporter.GetInstance().UpdateDiskUsage(w.name, w.cfg["path"])
 			w.logger.Error("rsync failed")
 			w.result = false
 			w.idle = true
 			continue
 		}
 		exporter.GetInstance().SyncSuccess(w.name)
+		exporter.GetInstance().UpdateDiskUsage(w.name, w.cfg["path"])
 		w.logger.Info("succeed")
 		w.logger.Infof("Stderr: %s", bufErr.String())
 		w.stderr.Put(bufErr.String())
