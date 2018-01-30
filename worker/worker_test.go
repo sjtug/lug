@@ -5,8 +5,8 @@ import (
 
 	"github.com/sjtug/lug/config"
 	"github.com/stretchr/testify/assert"
-	"os/exec"
 	"io"
+	"os/exec"
 )
 
 var rsyncW Worker
@@ -56,13 +56,13 @@ func TestNewShellScriptWorker(t *testing.T) {
 }
 
 type limitReader struct {
-	cnt int
+	cnt   int
 	limit int
 }
 
 func newLimitReader(limit int) *limitReader {
 	return &limitReader{
-		cnt: 0,
+		cnt:   0,
 		limit: limit,
 	}
 }
@@ -71,7 +71,7 @@ func (i *limitReader) Read(p []byte) (int, error) {
 		return 0, io.EOF
 	}
 	i.cnt += len(p)
-	for i:=0; i<len(p); i++ {
+	for i := 0; i < len(p); i++ {
 		p[i] = 0
 	}
 	return len(p), nil

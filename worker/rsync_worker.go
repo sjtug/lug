@@ -59,11 +59,11 @@ func NewRsyncWorker(status Status,
 // GetStatus returns a snapshot of current worker status
 func (w *RsyncWorker) GetStatus() Status {
 	return Status{
-		Idle: w.idle,
-		Result: w.result,
+		Idle:         w.idle,
+		Result:       w.result,
 		LastFinished: w.lastFinished,
-		Stdout: w.stdout.GetAll(),
-		Stderr: w.stderr.GetAll(),
+		Stdout:       w.stdout.GetAll(),
+		Stderr:       w.stderr.GetAll(),
 	}
 }
 

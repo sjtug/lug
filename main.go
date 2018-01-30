@@ -8,9 +8,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/bshuster-repo/logrus-logstash-hook"
+	"github.com/goji/httpauth"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/manager"
-	"github.com/goji/httpauth"
 )
 
 const (
@@ -114,10 +114,10 @@ func main() {
 	}
 	jsonapi := manager.NewRestfulAPI(m)
 	handler := jsonapi.GetAPIHandler()
-	if flags.apiUser != "" && flags.apiPassword !="" {
+	if flags.apiUser != "" && flags.apiPassword != "" {
 		auth := httpauth.BasicAuth(httpauth.AuthOptions{
-			Realm: "Require authentication",
-			User: flags.apiUser,
+			Realm:    "Require authentication",
+			User:     flags.apiUser,
 			Password: flags.apiPassword,
 		})
 		handler = auth(handler)
