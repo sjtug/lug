@@ -21,7 +21,7 @@ func NewMaxLengthStringSliceAdaptor(s []string, maxlen int) *MaxLengthStringSlic
 }
 
 // MaxLen returns the maximum length of given maxlenslice
-func (m MaxLengthStringSliceAdaptor) MaxLen() int {
+func (m *MaxLengthStringSliceAdaptor) MaxLen() int {
 	return m.maxlen
 }
 
@@ -41,7 +41,7 @@ func (m *MaxLengthStringSliceAdaptor) Put(str string) {
 }
 
 // GetAll creates a duplicate of current slice and returns it
-func (m MaxLengthStringSliceAdaptor) GetAll() []string {
+func (m *MaxLengthStringSliceAdaptor) GetAll() []string {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	result := make([]string, len(m.s))
@@ -50,7 +50,7 @@ func (m MaxLengthStringSliceAdaptor) GetAll() []string {
 }
 
 // Len returns current length of slice
-func (m MaxLengthStringSliceAdaptor) Len() int {
+func (m *MaxLengthStringSliceAdaptor) Len() int {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	return len(m.s)
