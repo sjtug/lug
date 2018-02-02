@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"io"
 	"os/exec"
+	"time"
 )
 
 var rsyncW Worker
@@ -92,3 +93,27 @@ func TestUtilityRlimit(t *testing.T) {
 	}
 	assert.True(err1 != nil || err2 != nil)
 }
+
+func TestShellScriptWorkerArgParse(t *testing.T) {
+	c := map[string]string {
+		"type": "shell_script",
+		"name": "shell",
+		"script": "wc -l /proc/stat",
+	}
+	w, err := NewWorker(c)
+
+	asrt := assert.New(t)
+	asrt.Nil(err)
+
+	go w.RunSync()
+	// workarounds
+	time.Sleep(time.Millisecond * 500)
+	w.TriggerSync()
+	time.Sleep(time.Millisecond * 500)
+	for ;!w.GetStatus().Idle; {
+		time.Sleep(time.Millisecond * 500)
+	}
+	asrt.True(w.GetStatus().Idle)
+	asrt.True(w.GetStatus().Result)
+}
+

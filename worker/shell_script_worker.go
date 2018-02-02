@@ -12,6 +12,8 @@ import (
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/helper"
+	"github.com/cosiner/argv"
+	"strings"
 )
 
 // ShellScriptWorker has Worker interface
@@ -78,6 +80,18 @@ func (w *ShellScriptWorker) TriggerSync() {
 	w.signal <- 1
 }
 
+func getOsEnvsAsMap() (result map[string]string) {
+	envs := os.Environ()
+	result = map[string]string {}
+	for _, e := range envs {
+		pair := strings.Split(e, "=")
+		key := pair[0]
+		val := pair[1]
+		result[key] = val
+	}
+	return
+}
+
 // RunSync launches the worker
 func (w *ShellScriptWorker) RunSync() {
 	for {
@@ -87,7 +101,18 @@ func (w *ShellScriptWorker) RunSync() {
 		w.idle = false
 		w.logger.Debug("finished waiting for signal")
 		script, _ := w.cfg["script"]
-		cmd := exec.Command(script)
+
+		args, err := argv.Argv([]rune(script), getOsEnvsAsMap(), argv.Run)
+		if err != nil {
+			w.logger.Error("Failed to parse argument:", err)
+			continue
+		}
+		if len(args) > 1 {
+			w.logger.Error("pipe is not supported in shell_script_worker")
+		}
+		invoke_args := args[0]
+		w.logger.Debug("Invoking args:", invoke_args)
+		cmd := exec.Command(invoke_args[0], invoke_args[1:]...)
 
 		// Forwarding config items to shell script as environmental variables
 		// Adds a LUG_ prefix to their key
@@ -109,7 +134,7 @@ func (w *ShellScriptWorker) RunSync() {
 		cmd.Stdout = &bufOut
 		cmd.Stderr = &bufErr
 
-		err := cmd.Start()
+		err = cmd.Start()
 
 		for _, utility := range w.utilities {
 			w.logger.Debug("Executing postHook of ", utility)
