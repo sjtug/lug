@@ -16,25 +16,10 @@ import (
 
 const (
 	lugVersionInfo = `Lug: An extensible backend for software mirror
-	Presented by SJTUG Version 0.1alpha
+	Presented by SJTUG Version 0.4.1
 	
 Visit https://github.com/sjtug/lug for latest version`
-	configHelp = `Configuration file of lug.
-Example:
-interval: 3 # Interval between pollings
-loglevel: 5 # 1-5
-exporter_address: :8081
-repos:
-    - type: rsync
-      source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/
-      interval: 6
-      path: /tmp/putty
-      name: putty
-      rlimit_mem: 200M
-    - type: shell_script
-      script: /path/to/your/script
-      interval: 6
-      name: shell`
+	configHelp = `Refer to config.example.yaml for sample config!`
 )
 
 // CommandFlags stores parsed flags from command line
