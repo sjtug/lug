@@ -23,6 +23,10 @@ type Config struct {
 	ExporterAddr string `yaml:"exporter_address"`
 	// Config for each repo is represented as an array of RepoConfig
 	Repos []RepoConfig
+	// FileServeAddr represents at which address/port files will be served
+	FileServeAddr string `yaml:"file_serve_address"`
+	// FileLogPath specifies where served files' log will be stored
+	FileLogPath string `yaml:"file_log_path"`
 }
 
 // Parse creates config from []byte
@@ -37,6 +41,12 @@ func (c *Config) Parse(in []byte) (err error) {
 		}
 		if c.ExporterAddr == "" {
 			c.ExporterAddr = ":8080"
+		}
+		if c.FileServeAddr == "" {
+			c.FileServeAddr = ":9000"
+		}
+		if c.FileLogPath == "" {
+			c.FileLogPath = "file-access.log"
 		}
 	}
 	return err

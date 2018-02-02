@@ -9,25 +9,28 @@ import (
 
 	"bytes"
 	log "github.com/Sirupsen/logrus"
+	"github.com/cosiner/argv"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/helper"
-	"github.com/cosiner/argv"
+	"net/http"
 	"strings"
 )
 
 // ShellScriptWorker has Worker interface
 type ShellScriptWorker struct {
-	idle         bool
-	result       bool
-	lastFinished time.Time
-	stdout       *helper.MaxLengthStringSliceAdaptor
-	stderr       *helper.MaxLengthStringSliceAdaptor
-	cfg          config.RepoConfig
-	name         string
-	signal       chan int
-	logger       *log.Entry
-	utilities    []utility
+	idle            bool
+	result          bool
+	lastFinished    time.Time
+	stdout          *helper.MaxLengthStringSliceAdaptor
+	stderr          *helper.MaxLengthStringSliceAdaptor
+	cfg             config.RepoConfig
+	name            string
+	signal          chan int
+	logger          *log.Entry
+	utilities       []utility
+	fileBasePath    string
+	fileBaseHandler http.Handler
 }
 
 // NewShellScriptWorker returns a shell script worker
@@ -53,6 +56,18 @@ func NewShellScriptWorker(status Status,
 		name:         cfg["name"],
 		logger:       log.WithField("worker", cfg["name"]),
 		utilities:    []utility{},
+	}
+	if basepath, ok := cfg["basepath"]; ok {
+		w.fileBasePath = basepath
+	} else {
+		w.fileBasePath = "/" + w.name
+	}
+
+	dstdir, ok := cfg["dstdir"]
+	if !ok {
+		return nil, errors.New("No dstdir in shell_script_worker")
+	} else {
+		w.fileBaseHandler = http.FileServer(http.Dir(dstdir))
 	}
 	w.utilities = append(w.utilities, newRlimit(w))
 	return w, nil
@@ -82,7 +97,7 @@ func (w *ShellScriptWorker) TriggerSync() {
 
 func getOsEnvsAsMap() (result map[string]string) {
 	envs := os.Environ()
-	result = map[string]string {}
+	result = map[string]string{}
 	for _, e := range envs {
 		pair := strings.Split(e, "=")
 		key := pair[0]
@@ -110,9 +125,9 @@ func (w *ShellScriptWorker) RunSync() {
 		if len(args) > 1 {
 			w.logger.Error("pipe is not supported in shell_script_worker")
 		}
-		invoke_args := args[0]
-		w.logger.Debug("Invoking args:", invoke_args)
-		cmd := exec.Command(invoke_args[0], invoke_args[1:]...)
+		invokeArgs := args[0]
+		w.logger.Debug("Invoking args:", invokeArgs)
+		cmd := exec.Command(invokeArgs[0], invokeArgs[1:]...)
 
 		// Forwarding config items to shell script as environmental variables
 		// Adds a LUG_ prefix to their key
@@ -165,4 +180,12 @@ func (w *ShellScriptWorker) RunSync() {
 		w.result = true
 		w.lastFinished = time.Now()
 	}
+}
+
+func (w *ShellScriptWorker) GetServeFileBasePath() string {
+	return w.fileBasePath
+}
+
+func (w *ShellScriptWorker) GetServeFileHandler() http.Handler {
+	return w.fileBaseHandler
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sjtug/lug/config"
+	"net/http"
 )
 
 // Worker declares interface for workers using diffenent ways of sync.
@@ -14,6 +15,12 @@ type Worker interface {
 	TriggerSync()
 
 	GetConfig() config.RepoConfig
+
+	// GetServeFileBasePath() determines that only requests matching returned prefix will be served by this worker
+	GetServeFileBasePath() string
+	// GetServeFileHandler() determines how file requests are served. Prefix returned by GetServeFileBasePath() will
+	// be stripped
+	GetServeFileHandler() http.Handler
 }
 
 // Status shows sync result and last timestamp.

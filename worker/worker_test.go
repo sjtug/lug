@@ -44,6 +44,7 @@ func TestNewShellScriptWorker(t *testing.T) {
 	c["type"] = "shell_script"
 	c["name"] = "shell"
 	c["script"] = "script"
+	c["dstdir"] = "/tmp"
 
 	assert := assert.New(t)
 
@@ -95,10 +96,11 @@ func TestUtilityRlimit(t *testing.T) {
 }
 
 func TestShellScriptWorkerArgParse(t *testing.T) {
-	c := map[string]string {
-		"type": "shell_script",
-		"name": "shell",
+	c := map[string]string{
+		"type":   "shell_script",
+		"name":   "shell",
 		"script": "wc -l /proc/stat",
+		"dstdir": "/tmp",
 	}
 	w, err := NewWorker(c)
 
@@ -110,10 +112,9 @@ func TestShellScriptWorkerArgParse(t *testing.T) {
 	time.Sleep(time.Millisecond * 500)
 	w.TriggerSync()
 	time.Sleep(time.Millisecond * 500)
-	for ;!w.GetStatus().Idle; {
+	for !w.GetStatus().Idle {
 		time.Sleep(time.Millisecond * 500)
 	}
 	asrt.True(w.GetStatus().Idle)
 	asrt.True(w.GetStatus().Result)
 }
-
