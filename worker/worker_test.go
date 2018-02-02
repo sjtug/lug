@@ -72,7 +72,7 @@ func (i *limitReader) Read(p []byte) (int, error) {
 	}
 	i.cnt += len(p)
 	for i := 0; i < len(p); i++ {
-		p[i] = 0
+		p[i] = 5 // shouldn't use zero here, because sometimes pages filled with zero are not allocated
 	}
 	return len(p), nil
 }
