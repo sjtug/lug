@@ -8,6 +8,7 @@ import (
 
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/worker"
+	"net/http"
 )
 
 const (
@@ -166,4 +167,20 @@ func (m *Manager) GetStatus() *Status {
 		status.WorkerStatus[wConfig["name"]] = wStatus
 	}
 	return &status
+}
+
+type FileServeConfigPerWorker struct {
+	ServePrefix string
+	Handler     http.Handler
+}
+
+func (m *Manager) GetFileServeConfigs() (result []FileServeConfigPerWorker) {
+	result = []FileServeConfigPerWorker{}
+	for _, worker := range m.workers {
+		result = append(result, FileServeConfigPerWorker{
+			ServePrefix: worker.GetServeFileBasePath(),
+			Handler:     worker.GetServeFileHandler(),
+		})
+	}
+	return
 }

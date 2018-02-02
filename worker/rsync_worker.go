@@ -10,20 +10,23 @@ import (
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/helper"
+	"net/http"
 )
 
 // RsyncWorker implements Worker interface
 type RsyncWorker struct {
-	cfg          config.RepoConfig
-	name         string
-	signal       chan int
-	logger       *log.Entry
-	utilities    []utility
-	idle         bool
-	result       bool
-	lastFinished time.Time
-	stdout       *helper.MaxLengthStringSliceAdaptor
-	stderr       *helper.MaxLengthStringSliceAdaptor
+	cfg           config.RepoConfig
+	name          string
+	signal        chan int
+	logger        *log.Entry
+	utilities     []utility
+	idle          bool
+	result        bool
+	lastFinished  time.Time
+	stdout        *helper.MaxLengthStringSliceAdaptor
+	stderr        *helper.MaxLengthStringSliceAdaptor
+	serveBasePath string
+	serveHandler  http.Handler
 }
 
 // NewRsyncWorker returns a rsync worker
@@ -39,7 +42,7 @@ func NewRsyncWorker(status Status,
 	if !ok {
 		return nil, errors.New("No source in config")
 	}
-	_, ok = cfg["path"]
+	dstpath, ok := cfg["path"]
 	if !ok {
 		return nil, errors.New("No path in config")
 	}
@@ -55,6 +58,13 @@ func NewRsyncWorker(status Status,
 		name:         cfg["name"],
 		logger:       log.WithField("worker", cfg["name"]),
 	}
+	if basepath, ok := cfg["basepath"]; ok {
+		w.serveBasePath = basepath
+	} else {
+		w.serveBasePath = "/" + cfg["name"]
+	}
+	w.serveHandler = http.FileServer(http.Dir(dstpath))
+
 	w.utilities = append(w.utilities, newRlimit(w))
 	return w, nil
 }
@@ -139,4 +149,12 @@ func (w *RsyncWorker) RunSync() {
 		w.result = true
 		w.lastFinished = time.Now()
 	}
+}
+
+func (w *RsyncWorker) GetServeFileBasePath() string {
+	return w.serveBasePath
+}
+
+func (w *RsyncWorker) GetServeFileHandler() http.Handler {
+	return w.serveHandler
 }

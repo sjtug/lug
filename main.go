@@ -9,9 +9,11 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/bshuster-repo/logrus-logstash-hook"
 	"github.com/goji/httpauth"
+	"github.com/gorilla/handlers"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/manager"
+	"os"
 )
 
 const (
@@ -24,15 +26,17 @@ Visit https://github.com/sjtug/lug for latest version`
 
 // CommandFlags stores parsed flags from command line
 type CommandFlags struct {
-	configFile   string
-	version      bool
-	license      bool
-	jsonAPIAddr  string
-	exporterAddr string
-	certFile     string
-	keyFile      string
-	apiUser      string
-	apiPassword  string
+	configFile    string
+	version       bool
+	license       bool
+	jsonAPIAddr   string
+	exporterAddr  string
+	fileServeAddr string
+	fileLogPath   string
+	certFile      string
+	keyFile       string
+	apiUser       string
+	apiPassword   string
 }
 
 // parse command line options and return CommandFlags
@@ -83,7 +87,7 @@ func init() {
 	if err != nil {
 		log.Error(err)
 		fmt.Print(configHelp)
-		return
+		panic("Failed to start lug")
 	}
 
 	cfg = config.Config{}
@@ -122,6 +126,23 @@ func main() {
 			flags.certFile, flags.keyFile)
 		go http.ListenAndServeTLS(flags.jsonAPIAddr, flags.certFile, flags.keyFile, handler)
 	}
+
+	file_serve_mux := http.NewServeMux()
+	file_serve_configs := m.GetFileServeConfigs()
+	file_access_logger, err := os.OpenFile(cfg.FileLogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	log.Infof("Opening file access log at %s", cfg.FileLogPath)
+	if err != nil {
+		panic(err)
+	}
+	defer file_access_logger.Close()
+	for _, file_serve_config := range file_serve_configs {
+		log.Infof("Registering handler for %s", file_serve_config.ServePrefix)
+		file_serve_mux.Handle(file_serve_config.ServePrefix, handlers.LoggingHandler(
+			file_access_logger, http.StripPrefix(
+				file_serve_config.ServePrefix, file_serve_config.Handler)))
+	}
+	log.Infof("Registering file server at port %s", cfg.FileServeAddr)
+	go http.ListenAndServe(cfg.FileServeAddr, file_serve_mux)
 
 	if flags.exporterAddr != "" {
 		cfg.ExporterAddr = flags.exporterAddr

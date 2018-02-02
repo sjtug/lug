@@ -19,7 +19,7 @@ func NewRestfulAPI(m *Manager) *RestfulAPI {
 	}
 }
 
-// GetAPIHandler returns handler that could be used for http package
+// GetAPIHandler returns Handler that could be used for http package
 func (r *RestfulAPI) GetAPIHandler() http.Handler {
 	api := rest.NewApi()
 	api.Use(rest.DefaultDevStack...)
