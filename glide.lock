@@ -1,5 +1,5 @@
-hash: 32449d377f20bbba2a9e1d7b12e728b6a4d83a64e9a3d05dd1b6e19addc1e378
-updated: 2018-02-02T23:17:15.808114381+08:00
+hash: 3776b333e41e223b26d54090db7b3822a6b695f25f42d8eea555f789bd35a0b5
+updated: 2018-02-03T00:37:08.007257163+08:00
 imports:
 - name: github.com/ant0ine/go-json-rest
   version: 3a807d6d8d36e0f9175d6c292030fce09bcbb2db
@@ -26,6 +26,8 @@ imports:
   version: 925541529c1fa6821df4e44ce2723319eb2be768
   subpackages:
   - proto
+- name: github.com/gorilla/handlers
+  version: 90663712d74cb411cbef281bc1e08c19d1a76145
 - name: github.com/matttproud/golang_protobuf_extensions
   version: c12348ce28de40eed0136aa2b644d0ee0650e56c
   subpackages:
