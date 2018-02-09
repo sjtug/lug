@@ -2,10 +2,9 @@
 package manager
 
 import (
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"strconv"
 	"time"
-
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/worker"
 )
@@ -32,6 +31,7 @@ type Manager struct {
 	controlChan chan int
 	finishChan  chan int
 	running     bool
+	logger		*logrus.Entry
 }
 
 // Status holds the status of a manager and its workers
@@ -49,6 +49,7 @@ func NewManager(config *config.Config) (*Manager, error) {
 		controlChan: make(chan int),
 		finishChan:  make(chan int),
 		running:     true,
+		logger: 	logrus.WithField("manager", ""),
 	}
 	for _, repoConfig := range config.Repos {
 		w, err := worker.NewWorker(repoConfig)
@@ -62,10 +63,13 @@ func NewManager(config *config.Config) (*Manager, error) {
 
 // Run will block current routine
 func (m *Manager) Run() {
-	log.Debugf("%p", m)
+	m.logger.Debugf("%p", m)
 	c := time.Tick(time.Duration(m.config.Interval) * time.Second)
 	for _, worker := range m.workers {
-		log.Debugf("Calling RunSync() to worker %s", worker.GetConfig()["name"])
+		m.logger.WithFields(logrus.Fields{
+			"event": "call_runsync",
+			"target_worker": worker.GetConfig()["name"],
+		}).Debugf("Calling RunSync() to worker %s", worker.GetConfig()["name"])
 		go worker.RunSync()
 	}
 	for {
@@ -73,15 +77,16 @@ func (m *Manager) Run() {
 		select {
 		case <-c:
 			if m.running {
-				log.Info("Start polling workers")
+				m.logger.WithField("event", "poll_start").Info("Start polling workers")
 				for i, worker := range m.workers {
 					wStatus := worker.GetStatus()
-					log.Debugf("worker %d: Idle: %v. Result: %v. Last finished: %v",
-						i,
-						wStatus.Idle,
-						wStatus.Result,
-						wStatus.LastFinished,
-					)
+					m.logger.WithFields(logrus.Fields {
+						"event": "worker_status",
+						"target_worker_idx": i,
+						"target_worker_idle": wStatus.Idle,
+						"target_worker_result": wStatus.Result,
+						"target_worker_last_finished": wStatus.LastFinished,
+					})
 					if !wStatus.Idle {
 						continue
 					}
@@ -89,17 +94,22 @@ func (m *Manager) Run() {
 					elapsed := time.Since(wStatus.LastFinished)
 					sec2sync, _ := strconv.Atoi(wConfig["interval"])
 					if elapsed > time.Duration(sec2sync)*time.Second {
-						log.Infof("Interval of worker %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
+						m.logger.WithFields(logrus.Fields{
+							"event": "trigger_sync",
+							"target_worker_name": wConfig["name"],
+							"target_worker_interval": sec2sync,
+						}).Infof("Interval of worker %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
 						worker.TriggerSync()
 					}
 				}
-				log.Info("Stop polling workers")
+				m.logger.WithField("event", "poll_end").Info("Stop polling workers")
 			}
 		case sig, ok := (<-m.controlChan):
 			if ok {
 				switch sig {
 				default:
-					log.Warningf("Unrecognized Control Signal: %d", sig)
+					m.logger.WithField("event", "unrecognized_control_signal").
+						Warningf("Unrecognized Control Signal: %d", sig)
 				case SigStart:
 					m.running = true
 					m.finishChan <- StartFinish
@@ -107,18 +117,18 @@ func (m *Manager) Run() {
 					m.running = false
 					m.finishChan <- StopFinish
 				case SigExit:
-					log.Info("Exiting...")
+					m.logger.WithField("event", "exit_control_signal").Info("Exiting...")
 					goto END_OF_FINISH
 				}
 			} else {
-				log.Fatal("Control channel is closed!")
+				m.logger.WithField("event", "control_channel_closed").Fatal("Control channel is closed!")
 			}
 		}
 	}
 END_OF_FINISH:
-	log.Debug("Sending ExitFinish...")
+	m.logger.WithField("event", "send_exit_finish").Debug("Sending ExitFinish...")
 	m.finishChan <- ExitFinish
-	log.Debug("Finished sending ExitFinish...")
+	m.logger.WithField("event", "senf_exit_finish_end").Debug("Finished sending ExitFinish...")
 }
 
 func (m *Manager) expectChanVal(ch chan int, expected int) {
@@ -126,12 +136,20 @@ func (m *Manager) expectChanVal(ch chan int, expected int) {
 	if ok {
 		switch exitMsg {
 		default:
-			log.Fatalf("Unrecognized Msg: %d, expected %d", exitMsg, expected)
+			m.logger.WithFields(logrus.Fields{
+				"event": "unexpected_control_message",
+				"expected_msg": expected,
+				"received_msg": exitMsg,
+			}).Fatalf("Unrecognized Msg: %d, expected %d", exitMsg, expected)
 		case expected:
-			log.Infof("Finished reading %d", expected)
+			m.logger.WithFields(logrus.Fields{
+				"event":        "finish_receive_control_message",
+				"expected_msg": expected,
+				"received_msg": expected,
+			}).Infof("Finished reading %d", expected)
 		}
 	} else {
-		log.Fatalf("Channel has been closed, expected %d", expected)
+		m.logger.WithField("event", "control_channel_closed").Fatalf("Channel has been closed, expected %d", expected)
 	}
 }
 

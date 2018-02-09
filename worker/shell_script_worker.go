@@ -95,11 +95,11 @@ func getOsEnvsAsMap() (result map[string]string) {
 // RunSync launches the worker
 func (w *ShellScriptWorker) RunSync() {
 	for {
-		w.logger.Debug("start waiting for signal")
+		w.logger.WithField("event", "start_wait_signal").Debug("start waiting for signal")
 		w.idle = true
 		<-w.signal
 		w.idle = false
-		w.logger.Debug("finished waiting for signal")
+		w.logger.WithField("event", "signal_received").Debug("finished waiting for signal")
 		script, _ := w.cfg["script"]
 
 		args, err := argv.Argv([]rune(script), getOsEnvsAsMap(), argv.Run)
@@ -122,9 +122,9 @@ func (w *ShellScriptWorker) RunSync() {
 		}
 		cmd.Env = env
 
-		w.logger.Info("start execution")
+		w.logger.WithField("event", "start_execution").Info("start execution")
 		for _, utility := range w.utilities {
-			w.logger.Debug("Executing prehook of ", utility)
+			w.logger.WithField("event", "exec_prehook").Debug("Executing prehook of ", utility)
 			if err := utility.preHook(); err != nil {
 				w.logger.Error("Failed to execute preHook:", err)
 			}
@@ -137,13 +137,13 @@ func (w *ShellScriptWorker) RunSync() {
 		err = cmd.Start()
 
 		for _, utility := range w.utilities {
-			w.logger.Debug("Executing postHook of ", utility)
+			w.logger.WithField("event", "exec_posthook").Debug("Executing postHook of ", utility)
 			if err := utility.postHook(); err != nil {
 				w.logger.Error("Failed to execute postHook:", err)
 			}
 		}
 		if err != nil {
-			w.logger.Error("execution cannot start")
+			w.logger.WithField("event", "execution_fail").Error("execution cannot start")
 			w.result = false
 			w.idle = true
 			continue
@@ -151,13 +151,13 @@ func (w *ShellScriptWorker) RunSync() {
 		err = cmd.Wait()
 		if err != nil {
 			exporter.GetInstance().SyncFail(w.name)
-			w.logger.Error("execution failed")
+			w.logger.WithField("event", "execution_fail").Error("execution failed")
 			w.result = false
 			w.idle = true
 			continue
 		}
 		exporter.GetInstance().SyncSuccess(w.name)
-		w.logger.Info("succeed")
+		w.logger.WithField("event", "execution_succeed").Info("succeed")
 		w.logger.Infof("Stderr: %s", bufErr.String())
 		w.stderr.Put(bufErr.String())
 		w.logger.Debugf("Stdout: %s", bufOut.String())
