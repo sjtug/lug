@@ -83,11 +83,11 @@ func (w *RsyncWorker) TriggerSync() {
 // RunSync launches the worker and waits signal from channel
 func (w *RsyncWorker) RunSync() {
 	for {
-		w.logger.Debug("start waiting for signal")
+		w.logger.WithField("event", "start_wait_signal").Debug("start waiting for signal")
 		w.idle = true
 		<-w.signal
 		w.idle = false
-		w.logger.Debug("finished waiting for signal")
+		w.logger.WithField("event", "signal_received").Debug("finished waiting for signal")
 		src, _ := w.cfg["source"]
 		dst, _ := w.cfg["path"]
 		cmd := exec.Command("rsync", "-aHvh", "--no-o", "--no-g", "--stats",
@@ -96,10 +96,10 @@ func (w *RsyncWorker) RunSync() {
 		var bufErr, bufOut bytes.Buffer
 		cmd.Stdout = &bufOut
 		cmd.Stderr = &bufErr
-		w.logger.Info("start rsync command")
+		w.logger.WithField("event", "start_execution").Info("start rsync command")
 
 		for _, utility := range w.utilities {
-			w.logger.Debug("Executing prehook of ", utility)
+			w.logger.WithField("event", "exec_prehook").Debug("Executing prehook of ", utility)
 			if err := utility.preHook(); err != nil {
 				w.logger.Error("Failed to execute preHook:", err)
 			}
@@ -108,14 +108,14 @@ func (w *RsyncWorker) RunSync() {
 		err := cmd.Start()
 
 		for _, utility := range w.utilities {
-			w.logger.Debug("Executing postHook of ", utility)
+			w.logger.WithField("event", "exec_posthook").Debug("Executing postHook of ", utility)
 			if err := utility.postHook(); err != nil {
 				w.logger.Error("Failed to execute postHook:", err)
 			}
 		}
 
 		if err != nil {
-			w.logger.Error("rsync cannot start")
+			w.logger.WithField("event", "execution_fail").Error("rsync cannot start")
 			w.result = false
 			w.idle = true
 			continue
@@ -124,14 +124,14 @@ func (w *RsyncWorker) RunSync() {
 		if err != nil {
 			exporter.GetInstance().SyncFail(w.name)
 			exporter.GetInstance().UpdateDiskUsage(w.name, w.cfg["path"])
-			w.logger.Error("rsync failed")
+			w.logger.WithField("event", "execution_fail").Error("rsync failed")
 			w.result = false
 			w.idle = true
 			continue
 		}
 		exporter.GetInstance().SyncSuccess(w.name)
 		exporter.GetInstance().UpdateDiskUsage(w.name, w.cfg["path"])
-		w.logger.Info("succeed")
+		w.logger.WithField("event", "execution_succeed").Info("succeed")
 		w.logger.Infof("Stderr: %s", bufErr.String())
 		w.stderr.Put(bufErr.String())
 		w.logger.Debugf("Stdout: %s", bufOut.String())
