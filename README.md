@@ -13,6 +13,10 @@ docker run -d -v {{host_path}}:{{docker_path}} -v {{absolute_path_of_config.yaml
 ```
 
 ### config.yaml
+
+The below configuration may be outdated. Refer to [config.example.yaml](https://github.com/sjtug/lug/blob/master/config.example.yaml)
+and [Wiki](https://github.com/sjtug/lug/wiki/Configuration) for the latest version.
+
 ```
 interval: 3 # Interval between pollings
 loglevel: 5 # 0-5. 0 for ERROR and 5 for DEBUG
