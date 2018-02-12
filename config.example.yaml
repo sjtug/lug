@@ -7,3 +7,6 @@ repos:
       interval: 6
       path: /tmp/putty
       name: putty
+    - type: external
+      name: external_worker
+      customized_key: any_value_parsed_by_external_program
