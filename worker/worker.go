@@ -64,6 +64,12 @@ func NewWorker(cfg config.RepoConfig) (Worker, error) {
 				return nil, err
 			}
 			return w, nil
+		case "external":
+			w, err := NewExternalWorker(cfg)
+			if err != nil {
+				return nil, err
+			}
+			return w, nil
 		}
 	}
 	return nil, errors.New("Fail to create a new worker")

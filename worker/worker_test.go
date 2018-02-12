@@ -12,6 +12,28 @@ import (
 
 var rsyncW Worker
 
+func TestNewExternalWorker(t *testing.T) {
+	asrt := assert.New(t)
+	c := config.RepoConfig{
+		"blahblah": "foobar",
+		"type":     "external",
+	}
+	_, err := NewWorker(c)
+	// worker with no name is not allowed
+	asrt.NotNil(err)
+
+	c["name"] = "test_external"
+	w, err := NewWorker(c)
+	// config with name and dummy kv pairs should be allowed
+	asrt.Nil(err)
+
+	status := w.GetStatus()
+	asrt.True(status.Result)
+	asrt.False(status.Idle)
+	asrt.NotNil(status.Stderr)
+	asrt.NotNil(status.Stdout)
+}
+
 func TestNewRsyncWorker(t *testing.T) {
 	assert := assert.New(t)
 
