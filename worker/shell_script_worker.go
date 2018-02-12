@@ -9,10 +9,10 @@ import (
 
 	"bytes"
 	log "github.com/Sirupsen/logrus"
+	"github.com/cosiner/argv"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/helper"
-	"github.com/cosiner/argv"
 	"strings"
 )
 
@@ -82,7 +82,7 @@ func (w *ShellScriptWorker) TriggerSync() {
 
 func getOsEnvsAsMap() (result map[string]string) {
 	envs := os.Environ()
-	result = map[string]string {}
+	result = map[string]string{}
 	for _, e := range envs {
 		pair := strings.Split(e, "=")
 		key := pair[0]

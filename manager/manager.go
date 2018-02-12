@@ -3,10 +3,10 @@ package manager
 
 import (
 	"github.com/Sirupsen/logrus"
-	"strconv"
-	"time"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/worker"
+	"strconv"
+	"time"
 )
 
 const (
@@ -31,7 +31,7 @@ type Manager struct {
 	controlChan chan int
 	finishChan  chan int
 	running     bool
-	logger		*logrus.Entry
+	logger      *logrus.Entry
 }
 
 // Status holds the status of a manager and its workers
@@ -49,7 +49,7 @@ func NewManager(config *config.Config) (*Manager, error) {
 		controlChan: make(chan int),
 		finishChan:  make(chan int),
 		running:     true,
-		logger: 	logrus.WithField("manager", ""),
+		logger:      logrus.WithField("manager", ""),
 	}
 	for _, repoConfig := range config.Repos {
 		w, err := worker.NewWorker(repoConfig)
@@ -67,7 +67,7 @@ func (m *Manager) Run() {
 	c := time.Tick(time.Duration(m.config.Interval) * time.Second)
 	for _, worker := range m.workers {
 		m.logger.WithFields(logrus.Fields{
-			"event": "call_runsync",
+			"event":         "call_runsync",
 			"target_worker": worker.GetConfig()["name"],
 		}).Debugf("Calling RunSync() to worker %s", worker.GetConfig()["name"])
 		go worker.RunSync()
@@ -80,11 +80,11 @@ func (m *Manager) Run() {
 				m.logger.WithField("event", "poll_start").Info("Start polling workers")
 				for i, worker := range m.workers {
 					wStatus := worker.GetStatus()
-					m.logger.WithFields(logrus.Fields {
-						"event": "worker_status",
-						"target_worker_idx": i,
-						"target_worker_idle": wStatus.Idle,
-						"target_worker_result": wStatus.Result,
+					m.logger.WithFields(logrus.Fields{
+						"event":                       "worker_status",
+						"target_worker_idx":           i,
+						"target_worker_idle":          wStatus.Idle,
+						"target_worker_result":        wStatus.Result,
 						"target_worker_last_finished": wStatus.LastFinished,
 					})
 					if !wStatus.Idle {
@@ -95,8 +95,8 @@ func (m *Manager) Run() {
 					sec2sync, _ := strconv.Atoi(wConfig["interval"])
 					if elapsed > time.Duration(sec2sync)*time.Second {
 						m.logger.WithFields(logrus.Fields{
-							"event": "trigger_sync",
-							"target_worker_name": wConfig["name"],
+							"event":                  "trigger_sync",
+							"target_worker_name":     wConfig["name"],
 							"target_worker_interval": sec2sync,
 						}).Infof("Interval of worker %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
 						worker.TriggerSync()
@@ -137,7 +137,7 @@ func (m *Manager) expectChanVal(ch chan int, expected int) {
 		switch exitMsg {
 		default:
 			m.logger.WithFields(logrus.Fields{
-				"event": "unexpected_control_message",
+				"event":        "unexpected_control_message",
 				"expected_msg": expected,
 				"received_msg": exitMsg,
 			}).Fatalf("Unrecognized Msg: %d, expected %d", exitMsg, expected)
