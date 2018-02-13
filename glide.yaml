@@ -36,3 +36,7 @@ import:
   subpackages:
   - prometheus/promhttp
 - package: github.com/cosiner/argv
+- package: github.com/spf13/viper
+  version: ~1.0.0
+- package: github.com/spf13/pflag
+  version: ~1.0.0
