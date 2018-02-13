@@ -2,7 +2,7 @@
 package manager
 
 import (
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/worker"
 	"strconv"

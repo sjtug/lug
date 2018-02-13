@@ -1,7 +1,7 @@
 package manager
 
 import (
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/ant0ine/go-json-rest/rest"
 	"net/http"
 	"time"

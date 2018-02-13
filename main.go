@@ -5,10 +5,10 @@ import (
 	flag "github.com/spf13/pflag"
 	"net/http"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/bshuster-repo/logrus-logstash-hook"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/goji/httpauth"
+	log "github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/manager"
