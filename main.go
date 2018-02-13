@@ -1,8 +1,8 @@
 package main
 
 import (
-	"flag"
 	"fmt"
+	flag "github.com/spf13/pflag"
 	"io/ioutil"
 	"net/http"
 
@@ -37,16 +37,16 @@ type CommandFlags struct {
 
 // parse command line options and return CommandFlags
 func getFlags() (flags CommandFlags) {
-	flag.StringVar(&flags.configFile, "c", "config.yaml",
+	flag.StringVarP(&flags.configFile, "conf", "c", "config.yaml",
 		configHelp)
 	flag.BoolVar(&flags.license, "license", false, "Prints license of used libraries")
-	flag.BoolVar(&flags.version, "v", false, "Prints version of lug")
-	flag.StringVar(&flags.jsonAPIAddr, "j", ":7001", "JSON API Address")
-	flag.StringVar(&flags.exporterAddr, "e", "", "Exporter Address")
+	flag.BoolVarP(&flags.version, "version", "v", false, "Prints version of lug")
+	flag.StringVarP(&flags.jsonAPIAddr, "jsonapi", "j", ":7001", "JSON API Address")
+	flag.StringVarP(&flags.exporterAddr, "exporter", "e", "", "Exporter Address")
 	flag.StringVar(&flags.certFile, "cert", "", "HTTPS Cert file of JSON API")
 	flag.StringVar(&flags.keyFile, "key", "", "HTTPS Key file of JSON API")
-	flag.StringVar(&flags.apiUser, "u", "", "User for authentication of JSON API")
-	flag.StringVar(&flags.apiPassword, "p", "", "Password for authentication of JSON API")
+	flag.StringVarP(&flags.apiUser, "api-user", "u", "", "User for authentication of JSON API")
+	flag.StringVarP(&flags.apiPassword, "api-password", "p", "", "Password for authentication of JSON API")
 	flag.Parse()
 	return
 }
