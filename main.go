@@ -5,7 +5,7 @@ import (
 	flag "github.com/spf13/pflag"
 	"net/http"
 
-	"github.com/bshuster-repo/logrus-logstash-hook"
+	"github.com/cheshir/logrustash"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/goji/httpauth"
 	log "github.com/sirupsen/logrus"
@@ -13,6 +13,7 @@ import (
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/manager"
 	"os"
+	"time"
 )
 
 const (
@@ -56,10 +57,14 @@ func getFlags() (flags CommandFlags) {
 func prepareLogger(logLevel log.Level, logStashAddr string) {
 	log.SetLevel(logLevel)
 	if logStashAddr != "" {
-		hook, err := logrus_logstash.NewHook("tcp", logStashAddr, "lug")
+		hook, err := logrustash.NewAsyncHook("tcp", logStashAddr, "lug")
 		if err != nil {
 			log.Fatal(err)
 		}
+		hook.WaitUntilBufferFrees = true
+		hook.ReconnectBaseDelay = time.Second
+		hook.ReconnectDelayMultiplier = 2
+		hook.MaxSendRetries = 10
 		log.AddHook(hook)
 	}
 }
