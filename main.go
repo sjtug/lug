@@ -7,6 +7,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/bshuster-repo/logrus-logstash-hook"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/goji/httpauth"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
@@ -98,7 +99,7 @@ func init() {
 
 	prepareLogger(cfg.LogLevel, cfg.LogStashAddr)
 	log.Info("Starting...")
-	log.Debugf("%+v\n", cfg)
+	log.Debugln(spew.Sdump(cfg))
 	if err != nil {
 		panic(err)
 	}
