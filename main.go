@@ -1,17 +1,18 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"io/ioutil"
+	flag "github.com/spf13/pflag"
 	"net/http"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/bshuster-repo/logrus-logstash-hook"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/goji/httpauth"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/manager"
+	"os"
 )
 
 const (
@@ -37,16 +38,16 @@ type CommandFlags struct {
 
 // parse command line options and return CommandFlags
 func getFlags() (flags CommandFlags) {
-	flag.StringVar(&flags.configFile, "c", "config.yaml",
+	flag.StringVarP(&flags.configFile, "conf", "c", "config.yaml",
 		configHelp)
 	flag.BoolVar(&flags.license, "license", false, "Prints license of used libraries")
-	flag.BoolVar(&flags.version, "v", false, "Prints version of lug")
-	flag.StringVar(&flags.jsonAPIAddr, "j", ":7001", "JSON API Address")
-	flag.StringVar(&flags.exporterAddr, "e", "", "Exporter Address")
+	flag.BoolVarP(&flags.version, "version", "v", false, "Prints version of lug")
+	flag.StringVarP(&flags.jsonAPIAddr, "jsonapi", "j", "", "JSON API Address")
+	flag.StringVarP(&flags.exporterAddr, "exporter", "e", "", "Exporter Address")
 	flag.StringVar(&flags.certFile, "cert", "", "HTTPS Cert file of JSON API")
 	flag.StringVar(&flags.keyFile, "key", "", "HTTPS Key file of JSON API")
-	flag.StringVar(&flags.apiUser, "u", "", "User for authentication of JSON API")
-	flag.StringVar(&flags.apiPassword, "p", "", "Password for authentication of JSON API")
+	flag.StringVarP(&flags.apiUser, "api-user", "u", "", "User for authentication of JSON API")
+	flag.StringVarP(&flags.apiPassword, "api-password", "p", "", "Password for authentication of JSON API")
 	flag.Parse()
 	return
 }
@@ -64,33 +65,41 @@ func prepareLogger(logLevel log.Level, logStashAddr string) {
 }
 
 var cfg config.Config
-var flags CommandFlags
 
 func init() {
-	flags = getFlags()
+	flags := getFlags()
+
+	cfgViper := config.CfgViper
+	cfgViper.BindPFlag("json_api.address", flag.Lookup("jsonapi"))
+	cfgViper.BindPFlag("json_api.certfile", flag.Lookup("cert"))
+	cfgViper.BindPFlag("json_api.keyfile", flag.Lookup("key"))
+	cfgViper.BindPFlag("json_api.username", flag.Lookup("api-user"))
+	cfgViper.BindPFlag("json_api.password", flag.Lookup("api-password"))
+	cfgViper.BindPFlag("exporter_address", flag.Lookup("exporter"))
 
 	if flags.version {
 		fmt.Print(lugVersionInfo)
-		return
+		os.Exit(0)
 	}
 
 	if flags.license {
 		fmt.Print(licenseText)
-		return
+		os.Exit(0)
 	}
 
-	dat, err := ioutil.ReadFile(flags.configFile)
+	file, err := os.Open(flags.configFile)
 	if err != nil {
 		log.Error(err)
 		fmt.Print(configHelp)
-		return
+		os.Exit(0)
 	}
-
+	defer file.Close()
 	cfg = config.Config{}
-	err = cfg.Parse(dat)
+	err = cfg.Parse(file)
+
 	prepareLogger(cfg.LogLevel, cfg.LogStashAddr)
 	log.Info("Starting...")
-	log.Debugf("%+v\n", cfg)
+	log.Debugln(spew.Sdump(cfg))
 	if err != nil {
 		panic(err)
 	}
@@ -103,29 +112,26 @@ func main() {
 	}
 	jsonapi := manager.NewRestfulAPI(m)
 	handler := jsonapi.GetAPIHandler()
-	if flags.apiUser != "" && flags.apiPassword != "" {
+	if cfg.JsonAPIConfig.Username != "" && cfg.JsonAPIConfig.Password != "" {
 		auth := httpauth.BasicAuth(httpauth.AuthOptions{
 			Realm:    "Require authentication",
-			User:     flags.apiUser,
-			Password: flags.apiPassword,
+			User:     cfg.JsonAPIConfig.Username,
+			Password: cfg.JsonAPIConfig.Password,
 		})
 		handler = auth(handler)
 	}
-	if flags.keyFile == "" || flags.certFile == "" {
-		if flags.apiUser != "" && flags.apiPassword != "" {
+	if cfg.JsonAPIConfig.KeyFile == "" || cfg.JsonAPIConfig.CertFile == "" {
+		if cfg.JsonAPIConfig.Username != "" && cfg.JsonAPIConfig.Password != "" {
 			log.Warn("JSON API with HTTP auth without TLS/SSL is vulnerable")
 		}
-		log.Infof("Http JSON API listening on %s", flags.jsonAPIAddr)
-		go http.ListenAndServe(flags.jsonAPIAddr, handler)
+		log.Infof("Http JSON API listening on %s", cfg.JsonAPIConfig.Address)
+		go http.ListenAndServe(cfg.JsonAPIConfig.Address, handler)
 	} else {
-		log.Infof("Https JSON API listening on %s with certfile %s and keyfile %s", flags.jsonAPIAddr,
-			flags.certFile, flags.keyFile)
-		go http.ListenAndServeTLS(flags.jsonAPIAddr, flags.certFile, flags.keyFile, handler)
+		log.Infof("Https JSON API listening on %s with certfile %s and keyfile %s", cfg.JsonAPIConfig.Address,
+			cfg.JsonAPIConfig.CertFile, cfg.JsonAPIConfig.KeyFile)
+		go http.ListenAndServeTLS(cfg.JsonAPIConfig.Address, cfg.JsonAPIConfig.CertFile, cfg.JsonAPIConfig.KeyFile, handler)
 	}
 
-	if flags.exporterAddr != "" {
-		cfg.ExporterAddr = flags.exporterAddr
-	}
 	go exporter.Expose(cfg.ExporterAddr)
 	m.Run()
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"strings"
 )
 
 func TestParseConfig(t *testing.T) {
@@ -16,7 +17,7 @@ repos:
   path: /mnt/vim
 `
 	c := Config{}
-	err := c.Parse([]byte(testStr))
+	err := c.Parse(strings.NewReader(testStr))
 
 	assert := assert.New(t)
 	assert.Nil(err)
@@ -41,7 +42,7 @@ repos:
 `
 	c := Config{}
 	var err error
-	err = c.Parse([]byte(testStr))
+	err = c.Parse(strings.NewReader(testStr))
 
 	assert := assert.New(t)
 	assert.Equal("Interval can't be negative", err.Error())
@@ -55,7 +56,7 @@ repos:
   path: /mnt/vim
 `
 	c = Config{}
-	err = c.Parse([]byte(testStr))
+	err = c.Parse(strings.NewReader(testStr))
 
 	assert.Equal("loglevel must be 0-5", err.Error())
 }
