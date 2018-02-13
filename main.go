@@ -12,6 +12,7 @@ import (
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/manager"
+	"os"
 )
 
 const (
@@ -71,12 +72,12 @@ func init() {
 
 	if flags.version {
 		fmt.Print(lugVersionInfo)
-		return
+		os.Exit(0)
 	}
 
 	if flags.license {
 		fmt.Print(licenseText)
-		return
+		os.Exit(0)
 	}
 
 	dat, err := ioutil.ReadFile(flags.configFile)
