@@ -35,15 +35,15 @@ func TestNewExternalWorker(t *testing.T) {
 }
 
 func TestNewRsyncWorker(t *testing.T) {
-	assert := assert.New(t)
+	asrt := assert.New(t)
 
 	var c config.RepoConfig = make(map[string]string)
 	c["type"] = "rsync"
 	var err error
 	rsyncW, err = NewWorker(c)
 
-	assert.Nil(rsyncW)
-	assert.NotNil(err)
+	asrt.Nil(rsyncW)
+	asrt.NotNil(err)
 
 	c["name"] = "putty"
 	c["source"] = "source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/"
@@ -52,12 +52,12 @@ func TestNewRsyncWorker(t *testing.T) {
 	c["rlimit_mem"] = "10M"
 	rsyncW, _ = NewWorker(c)
 
-	assert.True(rsyncW.GetStatus().Result)
-	assert.True(rsyncW.GetStatus().Idle)
-	assert.Equal("rsync", rsyncW.GetConfig()["type"])
-	assert.Equal("putty", rsyncW.GetConfig()["name"])
-	assert.Equal("source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/", rsyncW.GetConfig()["source"])
-	assert.Equal("/tmp/putty", rsyncW.GetConfig()["path"])
+	asrt.True(rsyncW.GetStatus().Result)
+	asrt.True(rsyncW.GetStatus().Idle)
+	asrt.Equal("rsync", rsyncW.GetConfig()["type"])
+	asrt.Equal("putty", rsyncW.GetConfig()["name"])
+	asrt.Equal("source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/", rsyncW.GetConfig()["source"])
+	asrt.Equal("/tmp/putty", rsyncW.GetConfig()["path"])
 
 }
 
@@ -67,14 +67,14 @@ func TestNewShellScriptWorker(t *testing.T) {
 	c["name"] = "shell"
 	c["script"] = "script"
 
-	assert := assert.New(t)
+	asrt := assert.New(t)
 
 	w, _ := NewWorker(c)
 
-	assert.Equal(true, w.GetStatus().Result)
-	assert.Equal("shell_script", w.GetConfig()["type"])
-	assert.Equal("shell", w.GetConfig()["name"])
-	assert.Equal("script", w.GetConfig()["script"])
+	asrt.Equal(true, w.GetStatus().Result)
+	asrt.Equal("shell_script", w.GetConfig()["type"])
+	asrt.Equal("shell", w.GetConfig()["name"])
+	asrt.Equal("script", w.GetConfig()["script"])
 
 }
 
@@ -101,7 +101,7 @@ func (i *limitReader) Read(p []byte) (int, error) {
 }
 
 func TestUtilityRlimit(t *testing.T) {
-	assert := assert.New(t)
+	asrt := assert.New(t)
 	rlimitUtility := newRlimit(rsyncW)
 
 	cmd := exec.Command("rev")
@@ -113,7 +113,7 @@ func TestUtilityRlimit(t *testing.T) {
 	if err1 == nil {
 		err2 = cmd.Wait()
 	}
-	assert.True(err1 != nil || err2 != nil)
+	asrt.True(err1 != nil || err2 != nil)
 }
 
 func TestShellScriptWorkerArgParse(t *testing.T) {

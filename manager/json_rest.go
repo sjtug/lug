@@ -52,24 +52,24 @@ type MangerStatusSimple struct {
 }
 
 func (r *RestfulAPI) getManagerStatusCommon(w rest.ResponseWriter, req *rest.Request, detailed bool) {
-	raw_status := r.manager.GetStatus()
+	rawStatus := r.manager.GetStatus()
 	if detailed {
-		w.WriteJson(raw_status)
+		w.WriteJson(rawStatus)
 		return
 	}
-	manager_status_simple := MangerStatusSimple{
-		Running:      raw_status.Running,
+	managerStatusSimple := MangerStatusSimple{
+		Running:      rawStatus.Running,
 		WorkerStatus: map[string]WorkerStatusSimple{},
 	}
 	// summary mode
-	for worker_key, raw_worker_status := range raw_status.WorkerStatus {
-		manager_status_simple.WorkerStatus[worker_key] = WorkerStatusSimple{
-			Result:       raw_worker_status.Result,
-			LastFinished: raw_worker_status.LastFinished,
-			Idle:         raw_worker_status.Idle,
+	for workerKey, rawWorkerStatus := range rawStatus.WorkerStatus {
+		managerStatusSimple.WorkerStatus[workerKey] = WorkerStatusSimple{
+			Result:       rawWorkerStatus.Result,
+			LastFinished: rawWorkerStatus.LastFinished,
+			Idle:         rawWorkerStatus.Idle,
 		}
 	}
-	w.WriteJson(manager_status_simple)
+	w.WriteJson(managerStatusSimple)
 }
 
 func (r *RestfulAPI) getManagerStatusDetail(w rest.ResponseWriter, req *rest.Request) {

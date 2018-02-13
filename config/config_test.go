@@ -19,15 +19,15 @@ repos:
 	c := Config{}
 	err := c.Parse(strings.NewReader(testStr))
 
-	assert := assert.New(t)
-	assert.Nil(err)
-	assert.Equal(25, c.Interval)
-	assert.Equal(5, int(c.LogLevel))
-	assert.Equal(1, len(c.Repos))
-	assert.Equal("rsync", c.Repos[0]["type"])
-	assert.Equal("vim.org", c.Repos[0]["source"])
-	assert.Equal("600", c.Repos[0]["interval"])
-	assert.Equal("/mnt/vim", c.Repos[0]["path"])
+	asrt := assert.New(t)
+	asrt.Nil(err)
+	asrt.Equal(25, c.Interval)
+	asrt.Equal(5, int(c.LogLevel))
+	asrt.Equal(1, len(c.Repos))
+	asrt.Equal("rsync", c.Repos[0]["type"])
+	asrt.Equal("vim.org", c.Repos[0]["source"])
+	asrt.Equal("600", c.Repos[0]["interval"])
+	asrt.Equal("/mnt/vim", c.Repos[0]["path"])
 
 }
 
@@ -44,8 +44,8 @@ repos:
 	var err error
 	err = c.Parse(strings.NewReader(testStr))
 
-	assert := assert.New(t)
-	assert.Equal("Interval can't be negative", err.Error())
+	asrt := assert.New(t)
+	asrt.Equal("Interval can't be negative", err.Error())
 
 	testStr = `interval: 25
 loglevel: 6
@@ -58,5 +58,5 @@ repos:
 	c = Config{}
 	err = c.Parse(strings.NewReader(testStr))
 
-	assert.Equal("loglevel must be 0-5", err.Error())
+	asrt.Equal("loglevel must be 0-5", err.Error())
 }
