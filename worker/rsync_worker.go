@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"bytes"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/helper"

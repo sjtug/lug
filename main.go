@@ -5,14 +5,15 @@ import (
 	flag "github.com/spf13/pflag"
 	"net/http"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/bshuster-repo/logrus-logstash-hook"
+	"github.com/cheshir/logrustash"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/goji/httpauth"
+	log "github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/manager"
 	"os"
+	"time"
 )
 
 const (
@@ -53,13 +54,17 @@ func getFlags() (flags CommandFlags) {
 }
 
 // Register Logger and set logLevel
-func prepareLogger(logLevel log.Level, logStashAddr string) {
+func prepareLogger(logLevel log.Level, logStashAddr string, additionalFields map[string]interface{}) {
 	log.SetLevel(logLevel)
 	if logStashAddr != "" {
-		hook, err := logrus_logstash.NewHook("tcp", logStashAddr, "lug")
+		hook, err := logrustash.NewAsyncHookWithFields("tcp", logStashAddr, "lug", additionalFields)
 		if err != nil {
 			log.Fatal(err)
 		}
+		hook.WaitUntilBufferFrees = true
+		hook.ReconnectBaseDelay = time.Second
+		hook.ReconnectDelayMultiplier = 2
+		hook.MaxSendRetries = 10
 		log.AddHook(hook)
 	}
 }
@@ -97,7 +102,7 @@ func init() {
 	cfg = config.Config{}
 	err = cfg.Parse(file)
 
-	prepareLogger(cfg.LogLevel, cfg.LogStashAddr)
+	prepareLogger(cfg.LogLevel, cfg.LogStashConfig.Address, cfg.LogStashConfig.AdditionalFields)
 	log.Info("Starting...")
 	log.Debugln(spew.Sdump(cfg))
 	if err != nil {

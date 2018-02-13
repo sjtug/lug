@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"bytes"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/cosiner/argv"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"

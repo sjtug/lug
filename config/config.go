@@ -4,7 +4,7 @@ package config
 
 import (
 	"errors"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io"
 )
@@ -25,14 +25,19 @@ type JsonAPIConfig struct {
 	KeyFile string
 }
 
+type LogStashConfig struct {
+	Address          string
+	AdditionalFields map[string]interface{} `mapstructure:"additional_fields"`
+}
+
 // Config stores all configuration of lug
 type Config struct {
 	// Interval between pollings in manager
 	Interval int
 	// LogLevel: 0-5 is acceptable
 	LogLevel log.Level
-	// LogStashAddr represents the address of logstash
-	LogStashAddr string `mapstructure:"logstash_address"`
+	// LogStashConfig represents configurations for logstash
+	LogStashConfig LogStashConfig `mapstructure:"logstash"`
 	// ExporterAddr is the address to expose metrics, :8080 for default
 	ExporterAddr string `mapstructure:"exporter_address"`
 	// JsonAPIConfig specifies configuration of JSON restful API

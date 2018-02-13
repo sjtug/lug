@@ -3,8 +3,10 @@ loglevel: 5 # 1-5
 # Prometheus metrics are exposed at http://exporter_address/metrics
 exporter_address: :8081
 
-## logstash sink. Lug will send all logs to this address
-# logstash_address: logstash.metrics.foobar.com:1234
+#logstash:
+#   address: listener.logz.io:5050 # logstash sink. Lug will send all logs to this address
+#   additional_fields:
+#       token: "" # Additional fields sent to logstash server
 
 # Address where JSON API will be served
 json_api:

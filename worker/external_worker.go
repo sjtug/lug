@@ -2,7 +2,7 @@ package worker
 
 import (
 	"errors"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"time"
 )
