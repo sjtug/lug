@@ -54,10 +54,10 @@ func getFlags() (flags CommandFlags) {
 }
 
 // Register Logger and set logLevel
-func prepareLogger(logLevel log.Level, logStashAddr string) {
+func prepareLogger(logLevel log.Level, logStashAddr string, additionalFields map[string]interface{}) {
 	log.SetLevel(logLevel)
 	if logStashAddr != "" {
-		hook, err := logrustash.NewAsyncHook("tcp", logStashAddr, "lug")
+		hook, err := logrustash.NewAsyncHookWithFields("tcp", logStashAddr, "lug", additionalFields)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -102,7 +102,7 @@ func init() {
 	cfg = config.Config{}
 	err = cfg.Parse(file)
 
-	prepareLogger(cfg.LogLevel, cfg.LogStashAddr)
+	prepareLogger(cfg.LogLevel, cfg.LogStashConfig.Address, cfg.LogStashConfig.AdditionalFields)
 	log.Info("Starting...")
 	log.Debugln(spew.Sdump(cfg))
 	if err != nil {
