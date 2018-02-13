@@ -110,9 +110,9 @@ func (w *ShellScriptWorker) RunSync() {
 		if len(args) > 1 {
 			w.logger.Error("pipe is not supported in shell_script_worker")
 		}
-		invoke_args := args[0]
-		w.logger.Debug("Invoking args:", invoke_args)
-		cmd := exec.Command(invoke_args[0], invoke_args[1:]...)
+		invokeArgs := args[0]
+		w.logger.Debug("Invoking args:", invokeArgs)
+		cmd := exec.Command(invokeArgs[0], invokeArgs[1:]...)
 
 		// Forwarding config items to shell script as environmental variables
 		// Adds a LUG_ prefix to their key

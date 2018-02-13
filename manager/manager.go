@@ -65,12 +65,12 @@ func NewManager(config *config.Config) (*Manager, error) {
 func (m *Manager) Run() {
 	m.logger.Debugf("%p", m)
 	c := time.Tick(time.Duration(m.config.Interval) * time.Second)
-	for _, worker := range m.workers {
+	for _, w := range m.workers {
 		m.logger.WithFields(logrus.Fields{
 			"event":         "call_runsync",
-			"target_worker": worker.GetConfig()["name"],
-		}).Debugf("Calling RunSync() to worker %s", worker.GetConfig()["name"])
-		go worker.RunSync()
+			"target_worker": w.GetConfig()["name"],
+		}).Debugf("Calling RunSync() to w %s", w.GetConfig()["name"])
+		go w.RunSync()
 	}
 	for {
 		// wait until config.Interval seconds has elapsed
@@ -78,8 +78,8 @@ func (m *Manager) Run() {
 		case <-c:
 			if m.running {
 				m.logger.WithField("event", "poll_start").Info("Start polling workers")
-				for i, worker := range m.workers {
-					wStatus := worker.GetStatus()
+				for i, w := range m.workers {
+					wStatus := w.GetStatus()
 					m.logger.WithFields(logrus.Fields{
 						"event":                       "worker_status",
 						"target_worker_idx":           i,
@@ -90,7 +90,7 @@ func (m *Manager) Run() {
 					if !wStatus.Idle {
 						continue
 					}
-					wConfig := worker.GetConfig()
+					wConfig := w.GetConfig()
 					elapsed := time.Since(wStatus.LastFinished)
 					sec2sync, _ := strconv.Atoi(wConfig["interval"])
 					if elapsed > time.Duration(sec2sync)*time.Second {
@@ -98,13 +98,13 @@ func (m *Manager) Run() {
 							"event":                  "trigger_sync",
 							"target_worker_name":     wConfig["name"],
 							"target_worker_interval": sec2sync,
-						}).Infof("Interval of worker %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
-						worker.TriggerSync()
+						}).Infof("Interval of w %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
+						w.TriggerSync()
 					}
 				}
 				m.logger.WithField("event", "poll_end").Info("Stop polling workers")
 			}
-		case sig, ok := (<-m.controlChan):
+		case sig, ok := <-m.controlChan:
 			if ok {
 				switch sig {
 				default:
@@ -132,7 +132,7 @@ END_OF_FINISH:
 }
 
 func (m *Manager) expectChanVal(ch chan int, expected int) {
-	exitMsg, ok := (<-ch)
+	exitMsg, ok := <-ch
 	if ok {
 		switch exitMsg {
 		default:
@@ -178,9 +178,9 @@ func (m *Manager) GetStatus() *Status {
 		Running:      m.running,
 		WorkerStatus: make(map[string]worker.Status),
 	}
-	for _, worker := range m.workers {
-		wConfig := worker.GetConfig()
-		wStatus := worker.GetStatus()
+	for _, w := range m.workers {
+		wConfig := w.GetConfig()
+		wStatus := w.GetStatus()
 		status.WorkerStatus[wConfig["name"]] = wStatus
 	}
 	return &status
