@@ -18,7 +18,7 @@ import (
 
 const (
 	lugVersionInfo = `Lug: An extensible backend for software mirror
-	Presented by SJTUG Version 0.7.0
+	Presented by SJTUG Version 0.8.0
 	
 Visit https://github.com/sjtug/lug for latest version`
 	configHelp = `Refer to config.example.yaml for sample config!`
