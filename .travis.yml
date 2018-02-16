@@ -9,7 +9,8 @@ install:
 script:
 - go test $(go list ./... | grep -v /vendor/)
 before_deploy:
-  zip lug.zip ./lug ./config.example.yaml
+- wget -Ogomplate https://github.com/hairyhenderson/gomplate/releases/download/v2.3.0/gomplate_linux-amd64
+- zip lug.zip ./lug ./config.example.yaml ./Caddyfile.template ./gomplate ./gen_caddyfile.sh
 deploy:
   skip_cleanup: true
   provider: releases
