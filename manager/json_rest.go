@@ -26,9 +26,9 @@ func (r *RestfulAPI) GetAPIHandler() http.Handler {
 	router, err := rest.MakeRouter(
 		rest.Get("/lug/v1/manager", r.getManagerStatusDetail),
 		rest.Get("/lug/v1/manager/summary", r.getManagerStatusSummary),
-		rest.Post("/lug/v1/manager/start", r.startManager),
-		rest.Post("/lug/v1/manager/stop", r.stopManager),
-		rest.Delete("/lug/v1/manager", r.exitManager),
+		rest.Post("/lug/v1/admin/manager/start", r.startManager),
+		rest.Post("/lug/v1/admin/manager/stop", r.stopManager),
+		rest.Delete("/lug/v1/admin/manager", r.exitManager),
 	)
 	if err != nil {
 		log.Fatal(err)
