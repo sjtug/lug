@@ -11,10 +11,6 @@ exporter_address: :8081
 # Address where JSON API will be served
 json_api:
     address: :7001
-    # certfile: "/foobar/tls.cer"
-    # keyfile: "/foobar/foobar.com.key"
-    # username: "example"
-    # password: "example"
 
 repos:
     - type: rsync

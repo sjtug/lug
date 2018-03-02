@@ -15,14 +15,6 @@ type RepoConfig map[string]string
 type JsonAPIConfig struct {
 	// The address that lug listens for JSON API
 	Address string
-	// HTTP basic auth username
-	Username string
-	// HTTP basic auth password
-	Password string
-	// Https certfile
-	CertFile string
-	// Https keyfile
-	KeyFile string
 }
 
 type LogStashConfig struct {
