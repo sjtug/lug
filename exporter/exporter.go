@@ -2,11 +2,12 @@
 package exporter
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/helper"
 	"net/http"
+	"time"
 )
 
 // Exporter exports lug metrics to Prometheus
@@ -14,6 +15,8 @@ type Exporter struct {
 	successCounter *prometheus.CounterVec
 	failCounter    *prometheus.CounterVec
 	diskUsage      *prometheus.GaugeVec
+	// stores worker_name -> last time that updates its disk usage
+	diskUsageLastUpdateTime map[string]time.Time
 }
 
 var instance *Exporter
@@ -44,6 +47,7 @@ func newExporter() *Exporter {
 			},
 			[]string{"worker"},
 		),
+		diskUsageLastUpdateTime: map[string]time.Time{},
 	}
 	prometheus.MustRegister(newExporter.successCounter)
 	prometheus.MustRegister(newExporter.failCounter)
@@ -78,10 +82,34 @@ func (e *Exporter) SyncFail(worker string) {
 	e.failCounter.With(prometheus.Labels{"worker": worker}).Inc()
 }
 
-// UpdateDiskUsage will update the disk usage of a directory
+// need at least 1min to rescan disk
+const updateDiskUsageThrottle time.Duration = time.Minute
+
+// UpdateDiskUsage will update the disk usage of a directory.
+// This call is asynchronous at rate-limited per worker
 func (e *Exporter) UpdateDiskUsage(worker string, path string) {
-	size, err := helper.DiskUsage(path)
-	if err == nil {
-		e.diskUsage.With(prometheus.Labels{"worker": worker}).Set(float64(size))
+	lastUpdateTime, found := e.diskUsageLastUpdateTime[worker]
+	logger := log.WithFields(log.Fields{
+		"worker": worker,
+		"path":   path,
+	})
+	logger.WithField("event", "update_disk_usage").Info("Invoke UpdateDiskUsage")
+	if !found || time.Now().Sub(lastUpdateTime) > updateDiskUsageThrottle {
+		logger.Debug("background update_disk_usage launched")
+		// first, we set it to infinity (2037-01-01)
+		// Note that we cannot use a larger value due to Y2038 problem on *nix
+		e.diskUsageLastUpdateTime[worker] = time.Date(
+			2037, 1, 1, 0, 0, 0, 0, time.Local)
+		// then, we perform the operation in background
+		go func() {
+			size, err := helper.DiskUsage(path)
+			if err == nil {
+				e.diskUsage.With(prometheus.Labels{"worker": worker}).Set(float64(size))
+			}
+			// when it finishes, we set it to actual finishing time
+			e.diskUsageLastUpdateTime[worker] = time.Now()
+			logger.WithField(
+				"event", "update_disk_usage_complete").WithField("size", size).Info("Disk usage updated")
+		}()
 	}
 }

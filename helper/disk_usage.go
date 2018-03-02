@@ -5,7 +5,7 @@ import (
 	"path"
 )
 
-// DiskUsage counts the disk usage of a directory
+// DiskUsage counts the disk usage of a directory. The call is synchronous
 func DiskUsage(curPath string) (int64, error) {
 	var size int64
 
