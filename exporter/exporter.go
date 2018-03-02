@@ -7,16 +7,19 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/helper"
 	"net/http"
+	"sync"
 	"time"
 )
 
-// Exporter exports lug metrics to Prometheus
+// Exporter exports lug metrics to Prometheus. All operations are thread-safe
 type Exporter struct {
 	successCounter *prometheus.CounterVec
 	failCounter    *prometheus.CounterVec
 	diskUsage      *prometheus.GaugeVec
 	// stores worker_name -> last time that updates its disk usage
 	diskUsageLastUpdateTime map[string]time.Time
+	// guard the exporter
+	mutex sync.Mutex
 }
 
 var instance *Exporter
@@ -74,11 +77,15 @@ func Expose(addr string) {
 
 // SyncSuccess will report a successful synchronization
 func (e *Exporter) SyncSuccess(worker string) {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
 	e.successCounter.With(prometheus.Labels{"worker": worker}).Inc()
 }
 
 // SyncFail will report a failed synchronization
 func (e *Exporter) SyncFail(worker string) {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
 	e.failCounter.With(prometheus.Labels{"worker": worker}).Inc()
 }
 
@@ -88,6 +95,8 @@ const updateDiskUsageThrottle time.Duration = time.Minute
 // UpdateDiskUsage will update the disk usage of a directory.
 // This call is asynchronous at rate-limited per worker
 func (e *Exporter) UpdateDiskUsage(worker string, path string) {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
 	lastUpdateTime, found := e.diskUsageLastUpdateTime[worker]
 	logger := log.WithFields(log.Fields{
 		"worker": worker,
@@ -103,6 +112,9 @@ func (e *Exporter) UpdateDiskUsage(worker string, path string) {
 		// then, we perform the operation in background
 		go func() {
 			size, err := helper.DiskUsage(path)
+			// the above step is time-consuming, so acquire the lock after it completes
+			e.mutex.Lock()
+			defer e.mutex.Unlock()
 			if err == nil {
 				e.diskUsage.With(prometheus.Labels{"worker": worker}).Set(float64(size))
 			}
