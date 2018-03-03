@@ -7,7 +7,6 @@ import (
 
 	"github.com/cheshir/logrustash"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/goji/httpauth"
 	log "github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
@@ -31,10 +30,6 @@ type CommandFlags struct {
 	license      bool
 	jsonAPIAddr  string
 	exporterAddr string
-	certFile     string
-	keyFile      string
-	apiUser      string
-	apiPassword  string
 }
 
 // parse command line options and return CommandFlags
@@ -45,10 +40,6 @@ func getFlags() (flags CommandFlags) {
 	flag.BoolVarP(&flags.version, "version", "v", false, "Prints version of lug")
 	flag.StringVarP(&flags.jsonAPIAddr, "jsonapi", "j", "", "JSON API Address")
 	flag.StringVarP(&flags.exporterAddr, "exporter", "e", "", "Exporter Address")
-	flag.StringVar(&flags.certFile, "cert", "", "HTTPS Cert file of JSON API")
-	flag.StringVar(&flags.keyFile, "key", "", "HTTPS Key file of JSON API")
-	flag.StringVarP(&flags.apiUser, "api-user", "u", "", "User for authentication of JSON API")
-	flag.StringVarP(&flags.apiPassword, "api-password", "p", "", "Password for authentication of JSON API")
 	flag.Parse()
 	return
 }
@@ -76,10 +67,6 @@ func init() {
 
 	cfgViper := config.CfgViper
 	cfgViper.BindPFlag("json_api.address", flag.Lookup("jsonapi"))
-	cfgViper.BindPFlag("json_api.certfile", flag.Lookup("cert"))
-	cfgViper.BindPFlag("json_api.keyfile", flag.Lookup("key"))
-	cfgViper.BindPFlag("json_api.username", flag.Lookup("api-user"))
-	cfgViper.BindPFlag("json_api.password", flag.Lookup("api-password"))
 	cfgViper.BindPFlag("exporter_address", flag.Lookup("exporter"))
 
 	if flags.version {
@@ -117,25 +104,7 @@ func main() {
 	}
 	jsonapi := manager.NewRestfulAPI(m)
 	handler := jsonapi.GetAPIHandler()
-	if cfg.JsonAPIConfig.Username != "" && cfg.JsonAPIConfig.Password != "" {
-		auth := httpauth.BasicAuth(httpauth.AuthOptions{
-			Realm:    "Require authentication",
-			User:     cfg.JsonAPIConfig.Username,
-			Password: cfg.JsonAPIConfig.Password,
-		})
-		handler = auth(handler)
-	}
-	if cfg.JsonAPIConfig.KeyFile == "" || cfg.JsonAPIConfig.CertFile == "" {
-		if cfg.JsonAPIConfig.Username != "" && cfg.JsonAPIConfig.Password != "" {
-			log.Warn("JSON API with HTTP auth without TLS/SSL is vulnerable")
-		}
-		log.Infof("Http JSON API listening on %s", cfg.JsonAPIConfig.Address)
-		go http.ListenAndServe(cfg.JsonAPIConfig.Address, handler)
-	} else {
-		log.Infof("Https JSON API listening on %s with certfile %s and keyfile %s", cfg.JsonAPIConfig.Address,
-			cfg.JsonAPIConfig.CertFile, cfg.JsonAPIConfig.KeyFile)
-		go http.ListenAndServeTLS(cfg.JsonAPIConfig.Address, cfg.JsonAPIConfig.CertFile, cfg.JsonAPIConfig.KeyFile, handler)
-	}
+	go http.ListenAndServe(cfg.JsonAPIConfig.Address, handler)
 
 	go exporter.Expose(cfg.ExporterAddr)
 	m.Run()
