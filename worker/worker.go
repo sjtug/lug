@@ -9,8 +9,11 @@ import (
 
 // Worker declares interface for workers using diffenent ways of sync.
 type Worker interface {
+	// This call should be thread-safe
 	GetStatus() Status
+	// This should block forever
 	RunSync()
+	// This call should be thread-safe
 	TriggerSync()
 
 	GetConfig() config.RepoConfig

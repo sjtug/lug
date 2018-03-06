@@ -14,6 +14,7 @@ import (
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/helper"
 	"strings"
+	"sync"
 )
 
 // ShellScriptWorker has Worker interface
@@ -28,6 +29,7 @@ type ShellScriptWorker struct {
 	signal       chan int
 	logger       *log.Entry
 	utilities    []utility
+	rwmutex      sync.RWMutex
 }
 
 // NewShellScriptWorker returns a shell script worker
@@ -61,6 +63,8 @@ func NewShellScriptWorker(status Status,
 
 // GetStatus returns a snapshot of current status
 func (w *ShellScriptWorker) GetStatus() Status {
+	w.rwmutex.RLock()
+	defer w.rwmutex.RUnlock()
 	return Status{
 		Idle:         w.idle,
 		Result:       w.result,
@@ -96,9 +100,17 @@ func getOsEnvsAsMap() (result map[string]string) {
 func (w *ShellScriptWorker) RunSync() {
 	for {
 		w.logger.WithField("event", "start_wait_signal").Debug("start waiting for signal")
-		w.idle = true
+		func() {
+			w.rwmutex.Lock()
+			defer w.rwmutex.Unlock()
+			w.idle = true
+		}()
 		<-w.signal
-		w.idle = false
+		func() {
+			w.rwmutex.Lock()
+			defer w.rwmutex.Unlock()
+			w.idle = false
+		}()
 		w.logger.WithField("event", "signal_received").Debug("finished waiting for signal")
 		script, _ := w.cfg["script"]
 
@@ -144,25 +156,37 @@ func (w *ShellScriptWorker) RunSync() {
 		}
 		if err != nil {
 			w.logger.WithField("event", "execution_fail").Error("execution cannot start")
-			w.result = false
-			w.idle = true
+			func() {
+				w.rwmutex.Lock()
+				defer w.rwmutex.Unlock()
+				w.result = false
+				w.idle = true
+			}()
 			continue
 		}
 		err = cmd.Wait()
 		if err != nil {
 			exporter.GetInstance().SyncFail(w.name)
 			w.logger.WithField("event", "execution_fail").Error("execution failed")
-			w.result = false
-			w.idle = true
+			func() {
+				w.rwmutex.Lock()
+				defer w.rwmutex.Unlock()
+				w.result = false
+				w.idle = true
+			}()
 			continue
 		}
 		exporter.GetInstance().SyncSuccess(w.name)
 		w.logger.WithField("event", "execution_succeed").Info("succeed")
 		w.logger.Infof("Stderr: %s", bufErr.String())
-		w.stderr.Put(bufErr.String())
-		w.logger.Debugf("Stdout: %s", bufOut.String())
-		w.stdout.Put(bufOut.String())
-		w.result = true
-		w.lastFinished = time.Now()
+		func() {
+			w.rwmutex.Lock()
+			defer w.rwmutex.Unlock()
+			w.stderr.Put(bufErr.String())
+			w.logger.Debugf("Stdout: %s", bufOut.String())
+			w.stdout.Put(bufOut.String())
+			w.result = true
+			w.lastFinished = time.Now()
+		}()
 	}
 }
