@@ -1,7 +1,7 @@
 package: github.com/sjtug/lug
 import:
 - package: github.com/sirupsen/logrus
-  version: a283a10442df8dc09befd873fab202bf8a253d6a
+  version: f4ee69125072b22721efbe639bd0da9c9d19b8cc
 - package: github.com/ant0ine/go-json-rest
   version: 3a807d6d8d36e0f9175d6c292030fce09bcbb2db
   subpackages:
@@ -24,7 +24,7 @@ import:
   subpackages:
   - assert
 - package: golang.org/x/sys
-  version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
+  version: dd2ff4accc098aceecb86b36eaa7829b2a17b1c9
   subpackages:
   - unix
 - package: gopkg.in/yaml.v2
@@ -39,4 +39,4 @@ import:
 - package: github.com/spf13/pflag
   version: ~1.0.0
 - package: github.com/cheshir/logrustash
-  version: ~0.7.0
+  version: 4729f73fb7d488062da50033c3796da3a36e1d17

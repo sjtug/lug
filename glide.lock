@@ -1,5 +1,5 @@
-hash: c408e7244a2aa61f00a89da11b974d020fb3e86b8f8978fc88a69915e07922c4
-updated: 2018-02-13T21:26:41.425149652+08:00
+hash: 3b6346b8479219cf2af921f0bcbc2a1c1e2142ca0e579ca4f8c0bfa2d8091294
+updated: 2018-03-06T19:00:04.188377082+08:00
 imports:
 - name: github.com/ant0ine/go-json-rest
   version: 3a807d6d8d36e0f9175d6c292030fce09bcbb2db
@@ -10,10 +10,8 @@ imports:
   version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
   subpackages:
   - quantile
-- name: github.com/bshuster-repo/logrus-logstash-hook
-  version: f8b7f00a4feb2088e5f7290f1c9360d1081ba0b5
 - name: github.com/cheshir/logrustash
-  version: d55d6adc72cff4345182c78983cf8f42e2bc294d
+  version: 4729f73fb7d488062da50033c3796da3a36e1d17
 - name: github.com/cosiner/argv
   version: 13bacc38a0a5e0eba18b6f03cbb15dc5d4243b04
 - name: github.com/davecgh/go-spew
@@ -77,7 +75,7 @@ imports:
   - nfs
   - xfs
 - name: github.com/sirupsen/logrus
-  version: a283a10442df8dc09befd873fab202bf8a253d6a
+  version: f4ee69125072b22721efbe639bd0da9c9d19b8cc
 - name: github.com/spf13/afero
   version: bbf41cb36dffe15dff5bf7e18c447801e7ffe163
   subpackages:
@@ -94,10 +92,15 @@ imports:
   version: d77da356e56a7428ad25149ca77381849a6a5232
   subpackages:
   - assert
+- name: golang.org/x/crypto
+  version: 91a49db82a88618983a78a06c1cbd4e00ab749ab
+  subpackages:
+  - ssh/terminal
 - name: golang.org/x/sys
-  version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
+  version: dd2ff4accc098aceecb86b36eaa7829b2a17b1c9
   subpackages:
   - unix
+  - windows
 - name: golang.org/x/text
   version: 4e4a3210bb54bb31f6ab2cdca2edcc0b50c420c1
   subpackages:
