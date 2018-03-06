@@ -3,8 +3,8 @@ go:
 - 1.8.x
 - 1.9.x
 install:
-- curl https://glide.sh/get | sh
-- glide install
+- curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+- dep ensure
 - go build .
 script:
 - go test $(go list ./... | grep -v /vendor/)
