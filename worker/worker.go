@@ -40,8 +40,9 @@ func NewWorker(cfg config.RepoConfig) (Worker, error) {
 		case "rsync":
 			w, err := NewRsyncWorker(
 				Status{
-					Result:       true,
-					LastFinished: time.Now(),
+					Result: true,
+					// here we set lastFinished to a very small value to ensure immediate trigger after restart
+					LastFinished: time.Now().AddDate(-1, 0, 0),
 					Idle:         true,
 					Stdout:       make([]string, 0),
 					Stderr:       make([]string, 0),
@@ -56,7 +57,7 @@ func NewWorker(cfg config.RepoConfig) (Worker, error) {
 			w, err := NewShellScriptWorker(
 				Status{
 					Result:       true,
-					LastFinished: time.Now(),
+					LastFinished: time.Now().AddDate(-1, 0, 0),
 					Idle:         true,
 					Stdout:       make([]string, 0),
 					Stderr:       make([]string, 0),
