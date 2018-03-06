@@ -40,8 +40,8 @@ Currently this project assumes Go >= 1.8.
 
 1. set your `GOPATH` to a directory: `export GOPATH=/home/go`. Set `$GOPATH/bin` to your `$PATH`: `export PATH=$PATH:$GOPATH/bin`
 2. `go get github.com/sjtug/lug`
-3. Install glide by `curl https://glide.sh/get | sh`
-3. `cd $GOPATH/src/github.com/sjtug/lug && glide install`
+3. Install dep by `curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh`
+3. `cd $GOPATH/src/github.com/sjtug/lug && dep ensure`
 4. Modify code, then use `go build .` to build binary, or test with `go test $(go list ./... | grep -v /vendor/)`
 5. Run `scripts/gen_license.sh` before committing your code
 
