@@ -10,6 +10,7 @@ import (
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
 	"github.com/sjtug/lug/helper"
+	"sync"
 )
 
 // RsyncWorker implements Worker interface
@@ -24,6 +25,7 @@ type RsyncWorker struct {
 	lastFinished time.Time
 	stdout       *helper.MaxLengthStringSliceAdaptor
 	stderr       *helper.MaxLengthStringSliceAdaptor
+	rwmutex      sync.RWMutex
 }
 
 // NewRsyncWorker returns a rsync worker
@@ -61,6 +63,8 @@ func NewRsyncWorker(status Status,
 
 // GetStatus returns a snapshot of current worker status
 func (w *RsyncWorker) GetStatus() Status {
+	w.rwmutex.RLock()
+	defer w.rwmutex.RUnlock()
 	return Status{
 		Idle:         w.idle,
 		Result:       w.result,
@@ -84,9 +88,17 @@ func (w *RsyncWorker) TriggerSync() {
 func (w *RsyncWorker) RunSync() {
 	for {
 		w.logger.WithField("event", "start_wait_signal").Debug("start waiting for signal")
-		w.idle = true
+		func() {
+			w.rwmutex.Lock()
+			defer w.rwmutex.Unlock()
+			w.idle = true
+		}()
 		<-w.signal
-		w.idle = false
+		func() {
+			w.rwmutex.Lock()
+			defer w.rwmutex.Unlock()
+			w.idle = false
+		}()
 		w.logger.WithField("event", "signal_received").Debug("finished waiting for signal")
 		src, _ := w.cfg["source"]
 		dst, _ := w.cfg["path"]
@@ -116,8 +128,12 @@ func (w *RsyncWorker) RunSync() {
 
 		if err != nil {
 			w.logger.WithField("event", "execution_fail").Error("rsync cannot start")
-			w.result = false
-			w.idle = true
+			func() {
+				w.rwmutex.Lock()
+				defer w.rwmutex.Unlock()
+				w.result = false
+				w.idle = true
+			}()
 			continue
 		}
 		err = cmd.Wait()
@@ -125,18 +141,26 @@ func (w *RsyncWorker) RunSync() {
 			exporter.GetInstance().SyncFail(w.name)
 			exporter.GetInstance().UpdateDiskUsage(w.name, w.cfg["path"])
 			w.logger.WithField("event", "execution_fail").Error("rsync failed")
-			w.result = false
-			w.idle = true
+			func() {
+				w.rwmutex.Lock()
+				defer w.rwmutex.Unlock()
+				w.result = false
+				w.idle = true
+			}()
 			continue
 		}
 		exporter.GetInstance().SyncSuccess(w.name)
 		exporter.GetInstance().UpdateDiskUsage(w.name, w.cfg["path"])
-		w.logger.WithField("event", "execution_succeed").Info("succeed")
-		w.logger.Infof("Stderr: %s", bufErr.String())
-		w.stderr.Put(bufErr.String())
-		w.logger.Debugf("Stdout: %s", bufOut.String())
-		w.stdout.Put(bufOut.String())
-		w.result = true
-		w.lastFinished = time.Now()
+		func() {
+			w.rwmutex.Lock()
+			defer w.rwmutex.Unlock()
+			w.logger.WithField("event", "execution_succeed").Info("succeed")
+			w.logger.Infof("Stderr: %s", bufErr.String())
+			w.stderr.Put(bufErr.String())
+			w.logger.Debugf("Stdout: %s", bufOut.String())
+			w.stdout.Put(bufOut.String())
+			w.result = true
+			w.lastFinished = time.Now()
+		}()
 	}
 }
