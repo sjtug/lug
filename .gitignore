@@ -33,3 +33,4 @@ _testmain.go
 /lug.zip
 /Caddyfile
 /gomplate*
+/_vendor*
