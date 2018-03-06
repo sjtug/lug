@@ -3,7 +3,7 @@ MAINTAINER Zheng Luo <vicluo96@gmail.com>
 RUN apt-get update && apt-get install rsync -y
 WORKDIR /go/src/github.com/sjtug/lug
 COPY . .
-RUN curl https://glide.sh/get | sh
-RUN glide install
+RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+RUN dep ensure
 RUN go-wrapper install
 CMD ["go-wrapper", "run"] # ["app"]
