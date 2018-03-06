@@ -146,6 +146,10 @@ func (w *RsyncWorker) RunSync() {
 				defer w.rwmutex.Unlock()
 				w.result = false
 				w.idle = true
+				w.logger.Infof("Stderr: %s", bufErr.String())
+				w.stderr.Put(bufErr.String())
+				w.logger.Debugf("Stdout: %s", bufOut.String())
+				w.stdout.Put(bufOut.String())
 			}()
 			continue
 		}
