@@ -50,6 +50,7 @@ func TestNewRsyncWorker(t *testing.T) {
 	c["path"] = "/tmp/putty"
 	c["interval"] = "6"
 	c["rlimit_mem"] = "10M"
+	c["exclude_hidden"] = "true"
 	rsyncW, _ = NewWorker(c)
 
 	asrt.True(rsyncW.GetStatus().Result)
@@ -57,6 +58,7 @@ func TestNewRsyncWorker(t *testing.T) {
 	asrt.Equal("rsync", rsyncW.GetConfig()["type"])
 	asrt.Equal("putty", rsyncW.GetConfig()["name"])
 	asrt.Equal("source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/", rsyncW.GetConfig()["source"])
+	asrt.Equal("true", rsyncW.GetConfig()["exclude_hidden"])
 	asrt.Equal("/tmp/putty", rsyncW.GetConfig()["path"])
 
 }

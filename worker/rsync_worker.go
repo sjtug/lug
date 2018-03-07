@@ -102,9 +102,16 @@ func (w *RsyncWorker) RunSync() {
 		w.logger.WithField("event", "signal_received").Debug("finished waiting for signal")
 		src, _ := w.cfg["source"]
 		dst, _ := w.cfg["path"]
-		cmd := exec.Command("rsync", "-aHvh", "--no-o", "--no-g", "--stats",
-			"--delete", "--delete-delay", "--safe-links",
-			"--timeout=120", "--contimeout=120", src, dst)
+		rsyncParams := []string{
+			"-aHvh", "--no-o", "--no-g", "--stats",
+			"--delete", "--delete-delay", "--safe-links", "--partial-dir=.rsync-partial",
+			"--timeout=120", "--contimeout=120",
+		}
+		if _, ok := w.cfg["exclude_hidden"]; ok {
+			rsyncParams = append(rsyncParams, "--exclude=.*")
+		}
+		rsyncParams = append(rsyncParams, src, dst)
+		cmd := exec.Command("rsync", rsyncParams...)
 		var bufErr, bufOut bytes.Buffer
 		cmd.Stdout = &bufOut
 		cmd.Stderr = &bufErr
