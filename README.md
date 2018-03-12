@@ -22,12 +22,13 @@ interval: 3 # Interval between pollings
 loglevel: 5 # 0-5. 0 for ERROR and 5 for DEBUG
 logstashaddr: "172.0.0.4:6000" # TCP Address of logstash. empty means no logstash support
 repos:
-    - type: rsync # Config for repo1
-      source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/
-      interval: 6 # Interval between sync
-      path: /tmp/putty # Output directory
-      name: putty # Required
-      rlimit_mem: 200M # Optional, maximum memory can be used
+    - type: shell_script
+      script: rsync -av rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/ /tmp/putty
+      name: putty
+      rlimit: 300M
+    - type: external
+      name: ubuntu
+      proxy_to: http://ftp.sjtu.edu.cn/ubuntu/
 # You can add more repos here, different repos may have different worker types,
 # refer to Worker Types section for detailed explanation
 ```
