@@ -26,12 +26,13 @@ const (
 
 // Manager holds worker instances
 type Manager struct {
-	config      *config.Config
-	workers     []worker.Worker
-	controlChan chan int
-	finishChan  chan int
-	running     bool
-	logger      *logrus.Entry
+	config                *config.Config
+	workers               []worker.Worker
+	workersLastInvokeTime []time.Time
+	controlChan           chan int
+	finishChan            chan int
+	running               bool
+	logger                *logrus.Entry
 }
 
 // Status holds the status of a manager and its workers
@@ -44,12 +45,13 @@ type Status struct {
 // NewManager creates a new manager with attached workers from config
 func NewManager(config *config.Config) (*Manager, error) {
 	newManager := Manager{
-		config:      config,
-		workers:     []worker.Worker{},
-		controlChan: make(chan int),
-		finishChan:  make(chan int),
-		running:     true,
-		logger:      logrus.WithField("manager", ""),
+		config:                config,
+		workers:               []worker.Worker{},
+		workersLastInvokeTime: []time.Time{},
+		controlChan:           make(chan int),
+		finishChan:            make(chan int),
+		running:               true,
+		logger:                logrus.WithField("manager", ""),
 	}
 	for _, repoConfig := range config.Repos {
 		w, err := worker.NewWorker(repoConfig)
@@ -57,6 +59,7 @@ func NewManager(config *config.Config) (*Manager, error) {
 			return nil, err
 		}
 		newManager.workers = append(newManager.workers, w)
+		newManager.workersLastInvokeTime = append(newManager.workersLastInvokeTime, time.Now().AddDate(-1, 0, 0))
 	}
 	return &newManager, nil
 }
@@ -91,7 +94,7 @@ func (m *Manager) Run() {
 						continue
 					}
 					wConfig := w.GetConfig()
-					elapsed := time.Since(wStatus.LastFinished)
+					elapsed := time.Since(m.workersLastInvokeTime[i])
 					sec2sync, _ := strconv.Atoi(wConfig["interval"])
 					if elapsed > time.Duration(sec2sync)*time.Second {
 						m.logger.WithFields(logrus.Fields{
@@ -99,6 +102,7 @@ func (m *Manager) Run() {
 							"target_worker_name":     wConfig["name"],
 							"target_worker_interval": sec2sync,
 						}).Infof("Interval of w %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
+						m.workersLastInvokeTime[i] = time.Now()
 						w.TriggerSync()
 					}
 				}
