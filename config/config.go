@@ -68,7 +68,11 @@ func (c *Config) Parse(in io.Reader) (err error) {
 	}
 	for _, repo := range c.Repos {
 		for _, v := range repo {
-			kind := reflect.TypeOf(v).Kind()
+			t := reflect.TypeOf(v)
+			if t == nil {
+				continue
+			}
+			kind := t.Kind()
 			var invalidKinds = map[reflect.Kind]bool{
 				reflect.Array:     true,
 				reflect.Map:       true,
