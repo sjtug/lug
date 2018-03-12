@@ -29,7 +29,7 @@ func (r *rlimit) preHook() error {
 		return rlimitError(fmt.Sprint("Failed to getrlimit:", err))
 	}
 	if rlimitMem, ok := cfg["rlimit_mem"]; ok {
-		if bytes, err := humanize.ParseBytes(rlimitMem); err == nil {
+		if bytes, err := humanize.ParseBytes(rlimitMem.(string)); err == nil {
 			var rlimitNew syscall.Rlimit
 			rlimitNew = r.oldRlimit
 			rlimitNew.Cur = bytes

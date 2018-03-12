@@ -4,13 +4,15 @@ package config
 
 import (
 	"errors"
+	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"io"
+	"reflect"
 )
 
 // RepoConfig stores config of each repo in a map
-type RepoConfig map[string]string
+type RepoConfig map[string]interface{}
 
 type JsonAPIConfig struct {
 	// The address that lug listens for JSON API
@@ -34,7 +36,7 @@ type Config struct {
 	ExporterAddr string `mapstructure:"exporter_address"`
 	// JsonAPIConfig specifies configuration of JSON restful API
 	JsonAPIConfig JsonAPIConfig `mapstructure:"json_api"`
-	// Config for each repo is represented as an array of RepoConfig
+	// Config for each repo is represented as an array of RepoConfig. Nested structure is disallowed
 	Repos []RepoConfig
 }
 
@@ -62,6 +64,25 @@ func (c *Config) Parse(in io.Reader) (err error) {
 		}
 		if c.LogLevel < 0 || c.LogLevel > 5 {
 			return errors.New("loglevel must be 0-5")
+		}
+	}
+	for _, repo := range c.Repos {
+		for _, v := range repo {
+			t := reflect.TypeOf(v)
+			if t == nil {
+				continue
+			}
+			kind := t.Kind()
+			var invalidKinds = map[reflect.Kind]bool{
+				reflect.Array:     true,
+				reflect.Map:       true,
+				reflect.Slice:     true,
+				reflect.Struct:    true,
+				reflect.Interface: true,
+			}
+			if _, ok := invalidKinds[kind]; ok {
+				return errors.New("nested property(e.g. arrays/maps) in Repos is disallowed: " + spew.Sdump(v))
+			}
 		}
 	}
 	return err

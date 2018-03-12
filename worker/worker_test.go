@@ -3,10 +3,13 @@ package worker
 import (
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/sjtug/lug/config"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -33,7 +36,7 @@ func TestNewExternalWorker(t *testing.T) {
 }
 
 func TestNewShellScriptWorker(t *testing.T) {
-	var c config.RepoConfig = make(map[string]string)
+	var c config.RepoConfig = make(map[string]interface{})
 	c["type"] = "shell_script"
 	c["name"] = "shell"
 	c["script"] = "script"
@@ -47,6 +50,45 @@ func TestNewShellScriptWorker(t *testing.T) {
 	asrt.Equal("shell", w.GetConfig()["name"])
 	asrt.Equal("script", w.GetConfig()["script"])
 
+}
+
+func TestShellScriptWorkerEnvVarsConvert(t *testing.T) {
+	type TestCase struct {
+		Str          string
+		Expected     map[string]string
+		ExpectedJSON string
+	}
+	testCases := []TestCase{
+		{
+			Str: `
+env1: 2
+env2: true
+env3: false
+env4: null
+env5: /tmp/bbc`,
+			Expected: map[string]string{
+				"LUG_env1": "2",
+				"LUG_env2": "1",
+				"LUG_env5": "/tmp/bbc",
+			},
+			ExpectedJSON: `{"env1": 2, "env2": true, "env3": false, "env5": "/tmp/bbc"}`,
+		},
+	}
+	asrt := assert.New(t)
+	for _, testcase := range testCases {
+		cfgViper := viper.New()
+		cfgViper.SetConfigType("yaml")
+		asrt.Nil(cfgViper.ReadConfig(strings.NewReader(testcase.Str)))
+		actual_interfaces := map[string]interface{}{}
+		asrt.Nil(cfgViper.Unmarshal(&actual_interfaces))
+		actual, err := convertMapToEnvVars(actual_interfaces)
+		asrt.Nil(err, spew.Sdump(actual_interfaces)+"\n"+spew.Sdump(cfgViper.AllSettings()))
+		asrt.Contains(actual, "LUG_config_json")
+		actual_json := actual["LUG_config_json"]
+		delete(actual, "LUG_config_json")
+		asrt.Equal(testcase.Expected, actual)
+		asrt.JSONEq(testcase.ExpectedJSON, actual_json)
+	}
 }
 
 type limitReader struct {
@@ -94,7 +136,7 @@ func TestUtilityRlimit(t *testing.T) {
 }
 
 func TestShellScriptWorkerArgParse(t *testing.T) {
-	c := map[string]string{
+	c := map[string]interface{}{
 		"type":   "shell_script",
 		"name":   "shell",
 		"script": "wc -l /proc/stat",
