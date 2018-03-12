@@ -13,10 +13,8 @@ json_api:
     address: :7001
 
 repos:
-    - type: rsync
-      source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/
-      interval: 6
-      path: /tmp/putty
+    - type: shell_script
+      script: rsync -av rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/ /tmp/putty
       name: putty
     - type: external
       name: ubuntu

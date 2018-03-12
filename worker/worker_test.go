@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-var rsyncW Worker
-
 func TestNewExternalWorker(t *testing.T) {
 	asrt := assert.New(t)
 	c := config.RepoConfig{
@@ -32,35 +30,6 @@ func TestNewExternalWorker(t *testing.T) {
 	asrt.False(status.Idle)
 	asrt.NotNil(status.Stderr)
 	asrt.NotNil(status.Stdout)
-}
-
-func TestNewRsyncWorker(t *testing.T) {
-	asrt := assert.New(t)
-
-	var c config.RepoConfig = make(map[string]string)
-	c["type"] = "rsync"
-	var err error
-	rsyncW, err = NewWorker(c)
-
-	asrt.Nil(rsyncW)
-	asrt.NotNil(err)
-
-	c["name"] = "putty"
-	c["source"] = "source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/"
-	c["path"] = "/tmp/putty"
-	c["interval"] = "6"
-	c["rlimit_mem"] = "10M"
-	c["exclude_hidden"] = "true"
-	rsyncW, _ = NewWorker(c)
-
-	asrt.True(rsyncW.GetStatus().Result)
-	asrt.True(rsyncW.GetStatus().Idle)
-	asrt.Equal("rsync", rsyncW.GetConfig()["type"])
-	asrt.Equal("putty", rsyncW.GetConfig()["name"])
-	asrt.Equal("source: rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/", rsyncW.GetConfig()["source"])
-	asrt.Equal("true", rsyncW.GetConfig()["exclude_hidden"])
-	asrt.Equal("/tmp/putty", rsyncW.GetConfig()["path"])
-
 }
 
 func TestNewShellScriptWorker(t *testing.T) {
@@ -104,7 +73,13 @@ func (i *limitReader) Read(p []byte) (int, error) {
 
 func TestUtilityRlimit(t *testing.T) {
 	asrt := assert.New(t)
-	rlimitUtility := newRlimit(rsyncW)
+	external_worker, ok := NewExternalWorker(config.RepoConfig{
+		"name":       "test_worker",
+		"rlimit_mem": "10M",
+	})
+	asrt.Nil(ok)
+
+	rlimitUtility := newRlimit(external_worker)
 
 	cmd := exec.Command("rev")
 	cmd.Stdin = newLimitReader(20000000) // > 10M = 10485760

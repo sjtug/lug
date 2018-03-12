@@ -38,21 +38,8 @@ func NewWorker(cfg config.RepoConfig) (Worker, error) {
 	if syncType, ok := cfg["type"]; ok {
 		switch syncType {
 		case "rsync":
-			w, err := NewRsyncWorker(
-				Status{
-					Result: true,
-					// here we set lastFinished to a very small value to ensure immediate trigger after restart
-					LastFinished: time.Now().AddDate(-1, 0, 0),
-					Idle:         true,
-					Stdout:       make([]string, 0),
-					Stderr:       make([]string, 0),
-				},
-				cfg,
-				make(chan int))
-			if err != nil {
-				return nil, err
-			}
-			return w, nil
+			return nil, errors.New("rsync worker has been removed since 0.10. " +
+				"Use rsync.sh with shell_script worker at https://github.com/sjtug/mirror-docker instead")
 		case "shell_script":
 			w, err := NewShellScriptWorker(
 				Status{
