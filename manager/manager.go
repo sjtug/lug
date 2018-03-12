@@ -5,7 +5,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/worker"
-	"strconv"
 	"time"
 )
 
@@ -95,7 +94,7 @@ func (m *Manager) Run() {
 					}
 					wConfig := w.GetConfig()
 					elapsed := time.Since(m.workersLastInvokeTime[i])
-					sec2sync, _ := strconv.Atoi(wConfig["interval"])
+					sec2sync, _ := wConfig["interval"].(int)
 					if elapsed > time.Duration(sec2sync)*time.Second {
 						m.logger.WithFields(logrus.Fields{
 							"event":                  "trigger_sync",
@@ -185,7 +184,7 @@ func (m *Manager) GetStatus() *Status {
 	for _, w := range m.workers {
 		wConfig := w.GetConfig()
 		wStatus := w.GetStatus()
-		status.WorkerStatus[wConfig["name"]] = wStatus
+		status.WorkerStatus[wConfig["name"].(string)] = wStatus
 	}
 	return &status
 }

@@ -16,10 +16,11 @@ type ExternalWorker struct {
 }
 
 func NewExternalWorker(cfg config.RepoConfig) (*ExternalWorker, error) {
-	name, ok := cfg["name"]
+	rawName, ok := cfg["name"]
 	if !ok {
 		return nil, errors.New("Name is required for external worker")
 	}
+	name := rawName.(string)
 	return &ExternalWorker{
 		name:   name,
 		logger: logrus.WithField("worker", name),

@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"bytes"
+	"encoding/json"
 	"github.com/cosiner/argv"
+	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/config"
 	"github.com/sjtug/lug/exporter"
@@ -32,15 +34,39 @@ type ShellScriptWorker struct {
 	rwmutex      sync.RWMutex
 }
 
+func convertMapToEnvVars(m map[string]interface{}) (map[string]string, error) {
+	result := map[string]string{}
+	for k, v := range m {
+		switch v.(type) {
+		case nil:
+			// skip
+		case bool:
+			if v.(bool) {
+				result["LUG_"+k] = "1"
+			}
+		case int, uint, float32, float64, string:
+			result["LUG_"+k] = fmt.Sprint(v)
+		default:
+			return nil, errors.New("invalid type:" + spew.Sdump(v))
+		}
+	}
+	marshal, err := json.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+	result["LUG_config_json"] = string(marshal)
+	return result, nil
+}
+
 // NewShellScriptWorker returns a shell script worker
 func NewShellScriptWorker(status Status,
 	cfg config.RepoConfig,
 	signal chan int) (*ShellScriptWorker, error) {
-	_, ok := cfg["name"]
+	name, ok := cfg["name"].(string)
 	if !ok {
 		return nil, errors.New("No name in config")
 	}
-	_, ok = cfg["script"]
+	_, ok = cfg["script"].(string)
 	if !ok {
 		return nil, errors.New("No script in config")
 	}
@@ -52,8 +78,8 @@ func NewShellScriptWorker(status Status,
 		stderr:       helper.NewMaxLengthSlice(status.Stderr, 200),
 		cfg:          cfg,
 		signal:       signal,
-		name:         cfg["name"],
-		logger:       log.WithField("worker", cfg["name"]),
+		name:         name,
+		logger:       log.WithField("worker", name),
 		utilities:    []utility{},
 	}
 	w.utilities = append(w.utilities, newRlimit(w))
@@ -114,7 +140,7 @@ func (w *ShellScriptWorker) RunSync() {
 		w.logger.WithField("event", "signal_received").Debug("finished waiting for signal")
 		script, _ := w.cfg["script"]
 
-		args, err := argv.Argv([]rune(script), getOsEnvsAsMap(), argv.Run)
+		args, err := argv.Argv([]rune(script.(string)), getOsEnvsAsMap(), argv.Run)
 		if err != nil {
 			w.logger.Error("Failed to parse argument:", err)
 			continue
@@ -129,8 +155,19 @@ func (w *ShellScriptWorker) RunSync() {
 		// Forwarding config items to shell script as environmental variables
 		// Adds a LUG_ prefix to their key
 		env := os.Environ()
-		for k, v := range w.cfg {
-			env = append(env, fmt.Sprintf("LUG_%s=%s", k, v))
+		envvars, err := convertMapToEnvVars(w.cfg)
+		if err != nil {
+			w.logger.WithField("event", "execution_fail").Error("cannot convert w.cfg to env vars")
+			func() {
+				w.rwmutex.Lock()
+				defer w.rwmutex.Unlock()
+				w.result = false
+				w.idle = true
+			}()
+			continue
+		}
+		for k, v := range envvars {
+			env = append(env, fmt.Sprintf("%s=%s", k, v))
 		}
 		cmd.Env = env
 
