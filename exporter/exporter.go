@@ -80,6 +80,7 @@ func (e *Exporter) SyncSuccess(worker string) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	e.successCounter.With(prometheus.Labels{"worker": worker}).Inc()
+	e.failCounter.With(prometheus.Labels{"worker": worker}).Add(0)
 }
 
 // SyncFail will report a failed synchronization
@@ -87,6 +88,7 @@ func (e *Exporter) SyncFail(worker string) {
 	e.mutex.Lock()
 	defer e.mutex.Unlock()
 	e.failCounter.With(prometheus.Labels{"worker": worker}).Inc()
+	e.successCounter.With(prometheus.Labels{"worker": worker}).Add(0)
 }
 
 // need at least 1min to rescan disk
