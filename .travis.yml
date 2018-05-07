@@ -8,7 +8,7 @@ install:
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - dep ensure
   - go build .
-scripts:
+script:
   - go test $(go list ./... | grep -v /vendor/)
 after_success:
   - goveralls -v
