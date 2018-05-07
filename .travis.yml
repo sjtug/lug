@@ -8,6 +8,9 @@ install:
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - dep ensure
   - go build .
+notifications:
+  webhooks: https://www.travisbuddy.com/
+  on_success: never
 script:
   - go test $(go list ./... | grep -v /vendor/)
 after_success:
