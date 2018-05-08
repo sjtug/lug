@@ -141,7 +141,10 @@ func (m *Manager) Run() {
 					}
 					wConfig := w.GetConfig()
 					elapsed := time.Since(m.workersLastInvokeTime[i])
-					sec2sync, _ := wConfig["interval"].(int)
+					sec2sync, ok := wConfig["interval"].(int)
+					if !ok {
+						sec2sync = 31536000 // if "interval" is not specified, then worker will launch once a year
+					}
 					if !m.isAlreadyInPendingQueue(i) && elapsed > time.Duration(sec2sync)*time.Second {
 						m.logger.WithFields(logrus.Fields{
 							"event":                  "trigger_pending",
