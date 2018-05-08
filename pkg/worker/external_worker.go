@@ -34,7 +34,7 @@ func (ew *ExternalWorker) GetStatus() Status {
 	return Status{
 		Result:       true,
 		LastFinished: time.Now(),
-		Idle:         false,
+		Idle:         true,
 		Stdout:       []string{},
 		Stderr:       []string{},
 	}
