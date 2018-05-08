@@ -31,7 +31,7 @@ func TestNewExternalWorker(t *testing.T) {
 
 	status := w.GetStatus()
 	asrt.True(status.Result)
-	asrt.False(status.Idle)
+	asrt.True(status.Idle)
 	asrt.NotNil(status.Stderr)
 	asrt.NotNil(status.Stdout)
 }

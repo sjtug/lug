@@ -1,5 +1,6 @@
 interval: 3 # Interval between pollings
 loglevel: 5 # 1-5
+concurrent_limit: 1 # Maximum worker that can run at the same time
 # Prometheus metrics are exposed at http://exporter_address/metrics
 exporter_address: :8081
 
@@ -16,12 +17,15 @@ repos:
     - type: shell_script
       script: rsync -av rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/ /tmp/putty
       name: putty
+      interval: 600
     - type: shell_script
       script: bash -c 'printenv | grep ^LUG'
       name: printenv
       any_option: any_value
       any_switch: true # This will be set to 1
       any_switch_2: false # unset
+      interval: 10
     - type: external
       name: ubuntu
       proxy_to: http://ftp.sjtu.edu.cn/ubuntu/
+      # Since interval is not set for this target, this will only be triggered at startup

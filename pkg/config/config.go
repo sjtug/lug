@@ -31,6 +31,8 @@ type Config struct {
 	Interval int
 	// LogLevel: 0-5 is acceptable
 	LogLevel log.Level
+	// ConcurrentLimit: how many worker can run at the same time
+	ConcurrentLimit int `mapstructure:"concurrent_limit"`
 	// LogStashConfig represents configurations for logstash
 	LogStashConfig LogStashConfig `mapstructure:"logstash"`
 	// ExporterAddr is the address to expose metrics, :8080 for default
@@ -49,6 +51,7 @@ func init() {
 	CfgViper.SetDefault("loglevel", 4)
 	CfgViper.SetDefault("json_api.address", ":7001")
 	CfgViper.SetDefault("exporter_address", ":8080")
+	CfgViper.SetDefault("concurrent_limit", 5)
 }
 
 // Parse creates config from a reader
@@ -65,6 +68,9 @@ func (c *Config) Parse(in io.Reader) (err error) {
 		}
 		if c.LogLevel < 0 || c.LogLevel > 5 {
 			return errors.New("loglevel must be 0-5")
+		}
+		if c.ConcurrentLimit <= 0 {
+			return errors.New("concurrent limit must be positive")
 		}
 	}
 	for _, repo := range c.Repos {
