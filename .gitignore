@@ -4,7 +4,7 @@
 *.so
 
 # Compiled binary files and configuration
-lug
+/lug
 config.yaml
 
 # Folders
