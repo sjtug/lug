@@ -10,6 +10,7 @@ import (
 func TestParseConfig(t *testing.T) {
 	const testStr = `interval: 25
 loglevel: 5 # 1 - 5
+concurrent_limit: 6
 repos:
 - type: shell_script
   script: rsync -av rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/ /tmp/putty
@@ -24,6 +25,7 @@ repos:
 	asrt.Equal(25, c.Interval)
 	asrt.Equal(5, int(c.LogLevel))
 	asrt.Equal(1, len(c.Repos))
+	asrt.Equal(6, c.ConcurrentLimit)
 	asrt.EqualValues("shell_script", c.Repos[0]["type"])
 	asrt.EqualValues("rsync -av rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/ /tmp/putty", c.Repos[0]["script"])
 	asrt.EqualValues("/mnt/putty", c.Repos[0]["path"])
@@ -81,4 +83,18 @@ repos:
 	err = c.Parse(strings.NewReader(testStr))
 
 	asrt.Equal("loglevel must be 0-5", err.Error())
+
+	testStr = `interval: 25
+loglevel: 4
+concurrent_limit: 0
+repos:
+- type: shell_script
+  script: rsync -av rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/ /tmp/putty
+  name: putty
+  path: /mnt/putty
+`
+	c = Config{}
+	err = c.Parse(strings.NewReader(testStr))
+
+	asrt.Equal("concurrent limit must be positive", err.Error())
 }
