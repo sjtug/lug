@@ -6,6 +6,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/sjtug/lug/pkg/config"
 	"github.com/sjtug/lug/pkg/worker"
 )
@@ -33,7 +34,9 @@ type Manager struct {
 	controlChan           chan int
 	finishChan            chan int
 	running               bool
-	logger                *logrus.Entry
+	// storing index of worker to launch
+	pendingQueue []int
+	logger       *logrus.Entry
 }
 
 // Status holds the status of a manager and its workers
@@ -65,6 +68,46 @@ func NewManager(config *config.Config) (*Manager, error) {
 	return &newManager, nil
 }
 
+func (m *Manager) isAlreadyInPendingQueue(workerIdx int) bool {
+	for _, wk := range m.pendingQueue {
+		if wk == workerIdx {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *Manager) launchWorkerFromPendingQueue(max_allowed int) {
+	if max_allowed <= 0 {
+		return
+	}
+	var new_idx int
+	if max_allowed > len(m.pendingQueue) {
+		new_idx = len(m.pendingQueue)
+	} else {
+		new_idx = max_allowed
+	}
+	m.logger.WithFields(logrus.Fields{
+		"event":         "launch_worker_from_pending_queue",
+		"max_allowed":   max_allowed,
+		"new_idx":       new_idx,
+		"pending_queue": spew.Sprint(m.pendingQueue),
+	}).Debug("launch worker from pending queue")
+	to_launch := m.pendingQueue[:new_idx]
+	m.pendingQueue = m.pendingQueue[new_idx:]
+
+	for _, w_idx := range to_launch {
+		w := m.workers[w_idx]
+		wConfig := w.GetConfig()
+		m.logger.WithFields(logrus.Fields{
+			"event":              "trigger_sync",
+			"target_worker_name": wConfig["name"],
+		}).Infof("trigger sync for worker %s from pendingQueue", wConfig["name"])
+		m.workersLastInvokeTime[w_idx] = time.Now()
+		w.TriggerSync()
+	}
+}
+
 // Run will block current routine
 func (m *Manager) Run() {
 	m.logger.Debugf("%p", m)
@@ -82,6 +125,7 @@ func (m *Manager) Run() {
 		case <-c:
 			if m.running {
 				m.logger.WithField("event", "poll_start").Info("Start polling workers")
+				running_worker_cnt := 0
 				for i, w := range m.workers {
 					wStatus := w.GetStatus()
 					m.logger.WithFields(logrus.Fields{
@@ -92,21 +136,22 @@ func (m *Manager) Run() {
 						"target_worker_last_finished": wStatus.LastFinished,
 					})
 					if !wStatus.Idle {
+						running_worker_cnt++
 						continue
 					}
 					wConfig := w.GetConfig()
 					elapsed := time.Since(m.workersLastInvokeTime[i])
 					sec2sync, _ := wConfig["interval"].(int)
-					if elapsed > time.Duration(sec2sync)*time.Second {
+					if !m.isAlreadyInPendingQueue(i) && elapsed > time.Duration(sec2sync)*time.Second {
 						m.logger.WithFields(logrus.Fields{
-							"event":                  "trigger_sync",
+							"event":                  "trigger_pending",
 							"target_worker_name":     wConfig["name"],
 							"target_worker_interval": sec2sync,
-						}).Infof("Interval of w %s (%d sec) elapsed, trigger it to sync", wConfig["name"], sec2sync)
-						m.workersLastInvokeTime[i] = time.Now()
-						w.TriggerSync()
+						}).Infof("Interval of w %s (%d sec) elapsed, send it to pendingQueue", wConfig["name"], sec2sync)
+						m.pendingQueue = append(m.pendingQueue, i)
 					}
 				}
+				m.launchWorkerFromPendingQueue(m.config.ConcurrentLimit - running_worker_cnt)
 				m.logger.WithField("event", "poll_end").Info("Stop polling workers")
 			}
 		case sig, ok := <-m.controlChan:
