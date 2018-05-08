@@ -1,22 +1,23 @@
 package worker
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
+	"sync"
 	"time"
 
-	"bytes"
-	"encoding/json"
 	"github.com/cosiner/argv"
 	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
-	"github.com/sjtug/lug/config"
-	"github.com/sjtug/lug/exporter"
-	"github.com/sjtug/lug/helper"
-	"strings"
-	"sync"
+
+	"github.com/sjtug/lug/pkg/config"
+	"github.com/sjtug/lug/pkg/exporter"
+	"github.com/sjtug/lug/pkg/helper"
 )
 
 // ShellScriptWorker has Worker interface

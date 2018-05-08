@@ -2,23 +2,24 @@ package main
 
 import (
 	"fmt"
-	flag "github.com/spf13/pflag"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/cheshir/logrustash"
 	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
-	"github.com/sjtug/lug/config"
-	"github.com/sjtug/lug/exporter"
-	"github.com/sjtug/lug/manager"
-	"os"
-	"time"
+	flag "github.com/spf13/pflag"
+
+	"github.com/sjtug/lug/pkg/config"
+	"github.com/sjtug/lug/pkg/exporter"
+	"github.com/sjtug/lug/pkg/manager"
 )
 
 const (
 	lugVersionInfo = `Lug: An extensible backend for software mirror
 	Presented by SJTUG Version 0.10.0
-	
+
 Visit https://github.com/sjtug/lug for latest version`
 	configHelp = `Refer to config.example.yaml for sample config!`
 )

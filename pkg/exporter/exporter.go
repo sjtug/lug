@@ -2,13 +2,15 @@
 package exporter
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
-	"github.com/sjtug/lug/helper"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/sjtug/lug/pkg/helper"
 )
 
 // Exporter exports lug metrics to Prometheus. All operations are thread-safe

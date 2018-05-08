@@ -1,16 +1,17 @@
 package worker
 
 import (
-	"testing"
-
-	"github.com/davecgh/go-spew/spew"
-	"github.com/sjtug/lug/config"
-	"github.com/spf13/viper"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"os/exec"
 	"strings"
+	"testing"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/sjtug/lug/pkg/config"
 )
 
 func TestNewExternalWorker(t *testing.T) {

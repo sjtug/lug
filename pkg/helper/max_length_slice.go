@@ -1,6 +1,8 @@
 package helper
 
-import "sync"
+import (
+	"sync"
+)
 
 // MaxLengthStringSliceAdaptor wrap the given slice with several methods for MaxLenSlice.
 // Note that this adaptor does not own that slice at all, so keep the content of slice unchanged!

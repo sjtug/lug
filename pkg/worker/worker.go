@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/sjtug/lug/config"
+	"github.com/sjtug/lug/pkg/config"
 )
 
 // Worker declares interface for workers using diffenent ways of sync.

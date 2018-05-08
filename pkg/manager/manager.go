@@ -2,10 +2,12 @@
 package manager
 
 import (
-	"github.com/sirupsen/logrus"
-	"github.com/sjtug/lug/config"
-	"github.com/sjtug/lug/worker"
 	"time"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/sjtug/lug/pkg/config"
+	"github.com/sjtug/lug/pkg/worker"
 )
 
 const (

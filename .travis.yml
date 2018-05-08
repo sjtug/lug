@@ -2,16 +2,15 @@ language: go
 go:
   - 1.8.x
   - 1.9.x
+go_import_path: github.com/sjtug/lug
+
 install:
   # get coveralls.io support
   - go get github.com/mattn/goveralls
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - dep ensure
-  - go build .
-notifications:
-  webhooks: https://www.travisbuddy.com/
-  on_success: never
 script:
+  - go build -o lug github.com/sjtug/lug/cli/lug
   - go test $(go list ./... | grep -v /vendor/)
 after_success:
   - goveralls -v
@@ -28,3 +27,7 @@ deploy:
     repo: sjtug/lug
     tags: true
     condition: "$(go version | grep go1.9)"
+
+notifications:
+  webhooks: https://www.travisbuddy.com/
+  on_success: never

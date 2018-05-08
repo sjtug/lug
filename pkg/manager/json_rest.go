@@ -1,10 +1,11 @@
 package manager
 
 import (
-	"github.com/ant0ine/go-json-rest/rest"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"time"
+
+	"github.com/ant0ine/go-json-rest/rest"
+	log "github.com/sirupsen/logrus"
 )
 
 // RestfulAPI is a JSON-like API of given manager
