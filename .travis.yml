@@ -7,7 +7,7 @@ install:
   - go get github.com/mattn/goveralls
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - dep ensure
-  - go build .
+  - go build -o lug github.com/sjtug/lug/cli/lug
 notifications:
   webhooks: https://www.travisbuddy.com/
   on_success: never
