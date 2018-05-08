@@ -1,9 +1,10 @@
 package helper
 
 import (
-	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMaxLengthStringSliceAdaptor(t *testing.T) {

@@ -2,16 +2,18 @@ package worker
 
 import (
 	"errors"
-	"github.com/sirupsen/logrus"
-	"github.com/sjtug/lug/config"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+
+	"github.com/sjtug/lug/pkg/config"
 )
 
 // ExternalWorker is a stub worker which always returns
 // {Idle: false, Result: true}.
 type ExternalWorker struct {
 	name   string
-	logger *logrus.Entry
+	logger *log.Entry
 	cfg    config.RepoConfig
 }
 
@@ -23,7 +25,7 @@ func NewExternalWorker(cfg config.RepoConfig) (*ExternalWorker, error) {
 	name := rawName.(string)
 	return &ExternalWorker{
 		name:   name,
-		logger: logrus.WithField("worker", name),
+		logger: log.WithField("worker", name),
 		cfg:    cfg,
 	}, nil
 }

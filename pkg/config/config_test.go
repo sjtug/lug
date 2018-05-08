@@ -1,10 +1,10 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"strings"
 )
 
 func TestParseConfig(t *testing.T) {

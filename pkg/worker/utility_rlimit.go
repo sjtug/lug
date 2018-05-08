@@ -2,8 +2,9 @@ package worker
 
 import (
 	"fmt"
-	"github.com/dustin/go-humanize"
 	"syscall"
+
+	"github.com/dustin/go-humanize"
 )
 
 type rlimit struct {

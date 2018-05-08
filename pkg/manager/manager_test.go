@@ -2,12 +2,13 @@ package manager
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"testing"
 	"time"
 
-	"github.com/sjtug/lug/config"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/sjtug/lug/pkg/config"
 )
 
 func TestManagerStartUp(t *testing.T) {
