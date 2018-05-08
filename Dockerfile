@@ -1,8 +1,12 @@
-FROM golang:1.9
-MAINTAINER Zheng Luo <vicluo96@gmail.com>
+FROM golang:1.9 AS build-env
+# The GOPATH in the image is /go.
+ADD . /go/src/github.com/sjtug/lug
 WORKDIR /go/src/github.com/sjtug/lug
-COPY . .
 RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 RUN dep ensure
-RUN go-wrapper install
-CMD ["go-wrapper", "run"] # ["app"]
+RUN go build github.com/sjtug/lug/cli/lug
+
+FROM debian:9
+WORKDIR /app
+COPY --from=build-env /go/src/github.com/sjtug/lug/lug /app/
+ENTRYPOINT ["./lug"]
