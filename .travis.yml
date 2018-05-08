@@ -9,8 +9,8 @@ install:
   - go get github.com/mattn/goveralls
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - dep ensure
-  - go build -o lug github.com/sjtug/lug/cli/lug
 script:
+  - go build -o lug github.com/sjtug/lug/cli/lug
   - go test $(go list ./... | grep -v /vendor/)
 after_success:
   - goveralls -v
