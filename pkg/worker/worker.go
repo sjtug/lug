@@ -41,7 +41,8 @@ func NewWorker(cfg config.RepoConfig) (Worker, error) {
 			return nil, errors.New("rsync worker has been removed since 0.10. " +
 				"Use rsync.sh with shell_script worker at https://github.com/sjtug/mirror-docker instead")
 		case "shell_script":
-			w, err := NewShellScriptWorker(
+			w, err := NewExecutorInvokeWorker(
+				newShellScriptExecutor(cfg),
 				Status{
 					Result:       true,
 					LastFinished: time.Now().AddDate(-1, 0, 0),

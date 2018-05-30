@@ -11,7 +11,10 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 
+	"errors"
+	"github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/pkg/config"
+	"sync/atomic"
 )
 
 func TestNewExternalWorker(t *testing.T) {
@@ -90,6 +93,47 @@ env5: /tmp/bbc`,
 		asrt.Equal(testcase.Expected, actual)
 		asrt.JSONEq(testcase.ExpectedJSON, actual_json)
 	}
+}
+
+type dummyExecutor struct {
+	RunCnt int32
+}
+
+func (d *dummyExecutor) RunOnce(logger *logrus.Entry, utilities []utility) (execResult, error) {
+	atomic.AddInt32(&d.RunCnt, 1)
+	return execResult{"", ""}, errors.New("dummy error")
+}
+
+func TestExecutorInvokeWorker(t *testing.T) {
+	asrt := assert.New(t)
+	d := &dummyExecutor{}
+	cfg := config.RepoConfig{
+		"interval":       100,
+		"retry":          2,
+		"retry_interval": 1,
+		"name":           "dummy",
+	}
+	logrus.SetLevel(logrus.DebugLevel)
+	control := make(chan int, 1)
+	w, err := NewExecutorInvokeWorker(d, Status{
+		Idle:         true,
+		Result:       true,
+		LastFinished: time.Now().AddDate(-1, -1, -1),
+	}, cfg, control)
+	asrt.Nil(err)
+	go w.RunSync()
+	w.TriggerSync()
+	time.Sleep(time.Millisecond * 100)
+	// should be retrying...
+	status1 := w.GetStatus()
+	asrt.False(status1.Idle)
+	asrt.Equal(1, int(atomic.LoadInt32(&d.RunCnt)))
+	time.Sleep(time.Second * 2)
+	// should abort..
+	status2 := w.GetStatus()
+	asrt.True(status2.Idle)
+	asrt.False(status2.Result)
+	asrt.Equal(2, int(atomic.LoadInt32(&d.RunCnt)))
 }
 
 type limitReader struct {
