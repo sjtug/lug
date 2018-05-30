@@ -1,4 +1,4 @@
-FROM golang:1.9 AS build-env
+FROM golang:1.10 AS build-env
 # The GOPATH in the image is /go.
 ADD . /go/src/github.com/sjtug/lug
 WORKDIR /go/src/github.com/sjtug/lug

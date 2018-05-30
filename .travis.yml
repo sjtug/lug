@@ -1,7 +1,7 @@
 language: go
 go:
-  - 1.8.x
   - 1.9.x
+  - 1.10.x
 go_import_path: github.com/sjtug/lug
 
 install:
@@ -26,7 +26,7 @@ deploy:
   on:
     repo: sjtug/lug
     tags: true
-    condition: "$(go version | grep go1.9)"
+    condition: "$(go version | grep go1.10)"
 
 notifications:
   webhooks: https://www.travisbuddy.com/
