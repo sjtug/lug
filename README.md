@@ -21,14 +21,19 @@ and [Wiki](https://github.com/sjtug/lug/wiki/Configuration) for the latest versi
 interval: 3 # Interval between pollings
 loglevel: 5 # 0-5. 0 for ERROR and 5 for DEBUG
 logstashaddr: "172.0.0.4:6000" # TCP Address of logstash. empty means no logstash support
+dummy: # place your anchor here!
+    common_interval: &common_interval
+      interval: 3600
 repos:
     - type: shell_script
       script: rsync -av rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/ /tmp/putty
       name: putty
       rlimit: 300M
+      <<: *common_interval # interval: 3600 will be inserted here
     - type: external
       name: ubuntu
       proxy_to: http://ftp.sjtu.edu.cn/ubuntu/
+      <<: *common_interval
 # You can add more repos here, different repos may have different worker types,
 # refer to Worker Types section for detailed explanation
 ```
