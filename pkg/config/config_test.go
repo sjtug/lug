@@ -55,6 +55,37 @@ repos:
 	asrt.EqualValues(false, c.Repos[0]["boolean"])
 }
 
+func TestParseYamlAnchor(t *testing.T) {
+	const testStr = `interval: 25
+loglevel: 5
+dummy:
+  common1: &common1
+    interval: 3600
+  common2: &common2
+    retry: 5
+repos:
+  - type: shell_script
+    <<: *common1
+    str: string
+    retry: 3
+  - type: shell_script
+    <<: *common1
+    <<: *common2
+`
+	c := Config{}
+	var err error
+	err = c.Parse(strings.NewReader(testStr))
+	asrt := assert.New(t)
+	asrt.NoError(err)
+	asrt.Equal(2, len(c.Repos))
+	asrt.EqualValues("shell_script", c.Repos[0]["type"])
+	asrt.EqualValues("string", c.Repos[0]["str"])
+	asrt.EqualValues(3600, c.Repos[0]["interval"])
+	asrt.EqualValues("shell_script", c.Repos[0]["type"])
+	asrt.EqualValues(3600, c.Repos[1]["interval"])
+	asrt.EqualValues(5, c.Repos[1]["retry"])
+}
+
 func TestWrongManagerConfig(t *testing.T) {
 	var testStr = `interval: -1
 loglevel: 5 # 1 - 5
