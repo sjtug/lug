@@ -41,6 +41,8 @@ type Config struct {
 	JsonAPIConfig JsonAPIConfig `mapstructure:"json_api"`
 	// Config for each repo is represented as an array of RepoConfig. Nested structure is disallowed
 	Repos []RepoConfig
+	// A dummy section that will not be used in our program.
+	Dummy interface{} `mapstructure:"dummy"`
 }
 
 // CfgViper is the instance of config
