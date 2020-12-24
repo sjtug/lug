@@ -1,0 +1,24 @@
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+name: Test
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with:
+        go-version: '^1.15.6'
+    # TODO: import coveralls key
+    # - run: go get github.com/mattn/goveralls
+    - run: go build -o lug github.com/sjtug/lug/cli/lug
+    - run: go test $(go list ./... | grep -v /vendor/)
+    # - run: goveralls -v

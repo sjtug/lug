@@ -1,0 +1,40 @@
+on:
+  push:
+    branches:
+    - release
+    tags:
+    - "v*"
+
+name: Release
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with:
+        go-version: '^1.15.6'
+    - run: go build -o lug github.com/sjtug/lug/cli/lug
+    - name: create tar
+      run: tar -cvzf lug.tar.gz lug
+    - uses: actions/create-release@latest
+      id: create_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: ${{ github.event.head_commit.message }}
+        draft: false
+        prerelease: true
+    - name: upload release (tar)
+      uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: lug.tar.gz
+        asset_name: lug.tar.gz
+        asset_content_type: application/tar+gzip
