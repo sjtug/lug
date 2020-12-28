@@ -58,12 +58,12 @@ func NewManager(config *config.Config) (*Manager, error) {
 		logger:                logrus.WithField("manager", ""),
 	}
 	for _, repoConfig := range config.Repos {
+		if repoConfig["disabled"] == true {
+			continue
+		}
 		w, err := worker.NewWorker(repoConfig)
 		if err != nil {
 			return nil, err
-		}
-		if w.GetConfig()["disabled"] == true {
-			continue
 		}
 		newManager.workers = append(newManager.workers, w)
 		newManager.workersLastInvokeTime = append(newManager.workersLastInvokeTime, time.Now().AddDate(-1, 0, 0))
