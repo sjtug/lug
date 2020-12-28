@@ -62,6 +62,9 @@ func NewManager(config *config.Config) (*Manager, error) {
 		if err != nil {
 			return nil, err
 		}
+		if w.GetConfig()["disabled"] == true {
+			continue
+		}
 		newManager.workers = append(newManager.workers, w)
 		newManager.workersLastInvokeTime = append(newManager.workersLastInvokeTime, time.Now().AddDate(-1, 0, 0))
 	}
