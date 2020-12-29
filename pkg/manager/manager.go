@@ -58,6 +58,9 @@ func NewManager(config *config.Config) (*Manager, error) {
 		logger:                logrus.WithField("manager", ""),
 	}
 	for _, repoConfig := range config.Repos {
+		if disabled, ok := repoConfig["disabled"].(bool); ok && disabled {
+			continue
+		}
 		w, err := worker.NewWorker(repoConfig)
 		if err != nil {
 			return nil, err
