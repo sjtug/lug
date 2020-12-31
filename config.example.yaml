@@ -3,6 +3,7 @@ loglevel: 5 # 1-5
 concurrent_limit: 1 # Maximum worker that can run at the same time
 # Prometheus metrics are exposed at http://exporter_address/metrics
 exporter_address: :8081
+checkpoint: checkpoint.json
 
 #logstash:
 #   address: listener.logz.io:5050 # logstash sink. Lug will send all logs to this address

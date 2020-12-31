@@ -6,6 +6,7 @@
 # Compiled binary files and configuration
 /lug
 config.yaml
+checkpoint.json
 
 # Folders
 _obj

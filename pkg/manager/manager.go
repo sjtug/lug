@@ -2,6 +2,9 @@
 package manager
 
 import (
+	"encoding/json"
+	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -30,7 +33,7 @@ const (
 type Manager struct {
 	config                *config.Config
 	workers               []worker.Worker
-	workersLastInvokeTime []time.Time
+	workersLastInvokeTime map[string]time.Time
 	controlChan           chan int
 	finishChan            chan int
 	running               bool
@@ -46,16 +49,45 @@ type Status struct {
 	WorkerStatus map[string]worker.Status
 }
 
+// fromCheckpoint laods last invoke time from json
+func fromCheckpoint(checkpointFile string) (map[string]time.Time, error) {
+	jsonFile, err := os.Open(checkpointFile)
+	if err != nil {
+		return nil, err
+	}
+	defer jsonFile.Close()
+
+	data, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		return nil, err
+	}
+
+	var checkpoint map[string]time.Time
+
+	err = json.Unmarshal(data, &checkpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	return checkpoint, nil
+}
+
 // NewManager creates a new manager with attached workers from config
 func NewManager(config *config.Config) (*Manager, error) {
+	logger := logrus.WithField("manager", "")
+	workersLastInvokeTime, err := fromCheckpoint(config.Checkpoint)
+	if err != nil {
+		workersLastInvokeTime = make(map[string]time.Time)
+		logger.Info("failed to parse checkpoint file")
+	}
 	newManager := Manager{
 		config:                config,
 		workers:               []worker.Worker{},
-		workersLastInvokeTime: []time.Time{},
+		workersLastInvokeTime: workersLastInvokeTime,
 		controlChan:           make(chan int),
 		finishChan:            make(chan int),
 		running:               true,
-		logger:                logrus.WithField("manager", ""),
+		logger:                logger,
 	}
 	for _, repoConfig := range config.Repos {
 		if disabled, ok := repoConfig["disabled"].(bool); ok && disabled {
@@ -66,9 +98,21 @@ func NewManager(config *config.Config) (*Manager, error) {
 			return nil, err
 		}
 		newManager.workers = append(newManager.workers, w)
-		newManager.workersLastInvokeTime = append(newManager.workersLastInvokeTime, time.Now().AddDate(-1, 0, 0))
+		name, _ := repoConfig["name"].(string)
+		if _, ok := newManager.workersLastInvokeTime[name]; !ok {
+			newManager.workersLastInvokeTime[name] = time.Now().AddDate(-1, 0, 0)
+		}
 	}
 	return &newManager, nil
+}
+
+func (m *Manager) checkpoint() error {
+	file, _ := json.MarshalIndent(m.workersLastInvokeTime, "", "  ")
+	err := ioutil.WriteFile(m.config.Checkpoint, file, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *Manager) isAlreadyInPendingQueue(workerIdx int) bool {
@@ -106,7 +150,7 @@ func (m *Manager) launchWorkerFromPendingQueue(max_allowed int) {
 			"event":              "trigger_sync",
 			"target_worker_name": wConfig["name"],
 		}).Infof("trigger sync for worker %s from pendingQueue", wConfig["name"])
-		m.workersLastInvokeTime[w_idx] = time.Now()
+		m.workersLastInvokeTime[wConfig["name"].(string)] = time.Now()
 		w.TriggerSync()
 	}
 }
@@ -129,6 +173,7 @@ func (m *Manager) Run() {
 			if m.running {
 				m.logger.WithField("event", "poll_start").Info("Start polling workers")
 				running_worker_cnt := 0
+				shouldCheckpoint := false
 				for i, w := range m.workers {
 					wStatus := w.GetStatus()
 					m.logger.WithFields(logrus.Fields{
@@ -143,7 +188,7 @@ func (m *Manager) Run() {
 						continue
 					}
 					wConfig := w.GetConfig()
-					elapsed := time.Since(m.workersLastInvokeTime[i])
+					elapsed := time.Since(m.workersLastInvokeTime[wConfig["name"].(string)])
 					sec2sync, ok := wConfig["interval"].(int)
 					if !ok {
 						sec2sync = 31536000 // if "interval" is not specified, then worker will launch once a year
@@ -155,10 +200,17 @@ func (m *Manager) Run() {
 							"target_worker_interval": sec2sync,
 						}).Infof("Interval of w %s (%d sec) elapsed, send it to pendingQueue", wConfig["name"], sec2sync)
 						m.pendingQueue = append(m.pendingQueue, i)
+						shouldCheckpoint = true
 					}
 				}
 				m.launchWorkerFromPendingQueue(m.config.ConcurrentLimit - running_worker_cnt)
 				m.logger.WithField("event", "poll_end").Info("Stop polling workers")
+
+				// Here we do not checkpoint very concisely (e.g. every time after a successful sync).
+				// We just want to minimize re-sync after restarting lug.
+				if shouldCheckpoint {
+					m.checkpoint()
+				}
 			}
 		case sig, ok := <-m.controlChan:
 			if ok {
