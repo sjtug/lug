@@ -39,6 +39,8 @@ type Config struct {
 	ExporterAddr string `mapstructure:"exporter_address"`
 	// JsonAPIConfig specifies configuration of JSON restful API
 	JsonAPIConfig JsonAPIConfig `mapstructure:"json_api"`
+	// Worker sync checkpoint path
+	Checkpoint string `mapstructure:"checkpoint"`
 	// Config for each repo is represented as an array of RepoConfig. Nested structure is disallowed
 	Repos []RepoConfig
 	// A dummy section that will not be used in our program.
