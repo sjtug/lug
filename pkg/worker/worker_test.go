@@ -12,9 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"errors"
+	"sync/atomic"
+
 	"github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/pkg/config"
-	"sync/atomic"
 )
 
 func TestNewExternalWorker(t *testing.T) {
@@ -23,12 +24,12 @@ func TestNewExternalWorker(t *testing.T) {
 		"blahblah": "foobar",
 		"type":     "external",
 	}
-	_, err := NewWorker(c)
+	_, err := NewWorker(c, time.Now())
 	// worker with no name is not allowed
 	asrt.NotNil(err)
 
 	c["name"] = "test_external"
-	w, err := NewWorker(c)
+	w, err := NewWorker(c, time.Now())
 	// config with name and dummy kv pairs should be allowed
 	asrt.Nil(err)
 
@@ -47,7 +48,7 @@ func TestNewShellScriptWorker(t *testing.T) {
 
 	asrt := assert.New(t)
 
-	w, _ := NewWorker(c)
+	w, _ := NewWorker(c, time.Now())
 
 	asrt.Equal(true, w.GetStatus().Result)
 	asrt.Equal("shell_script", w.GetConfig()["type"])
@@ -186,7 +187,7 @@ func TestShellScriptWorkerArgParse(t *testing.T) {
 		"name":   "shell",
 		"script": "wc -l /proc/stat",
 	}
-	w, err := NewWorker(c)
+	w, err := NewWorker(c, time.Now())
 
 	asrt := assert.New(t)
 	asrt.Nil(err)
