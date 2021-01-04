@@ -3,6 +3,7 @@ package manager
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
@@ -49,8 +50,16 @@ type Status struct {
 	WorkerStatus map[string]worker.Status
 }
 
+type WorkerCheckPoint struct {
+	LastInvokeTime time.Time
+}
+
+type CheckPoint struct {
+	workerInfo map[string]WorkerCheckPoint
+}
+
 // fromCheckpoint laods last invoke time from json
-func fromCheckpoint(checkpointFile string) (map[string]time.Time, error) {
+func fromCheckpoint(checkpointFile string) (*CheckPoint, error) {
 	jsonFile, err := os.Open(checkpointFile)
 	if err != nil {
 		return nil, err
@@ -62,23 +71,27 @@ func fromCheckpoint(checkpointFile string) (map[string]time.Time, error) {
 		return nil, err
 	}
 
-	var checkpoint map[string]time.Time
+	var checkpoint CheckPoint
 
 	err = json.Unmarshal(data, &checkpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	return checkpoint, nil
+	return &checkpoint, nil
 }
 
 // NewManager creates a new manager with attached workers from config
 func NewManager(config *config.Config) (*Manager, error) {
 	logger := logrus.WithField("manager", "")
-	workersLastInvokeTime, err := fromCheckpoint(config.Checkpoint)
+	checkpoint, err := fromCheckpoint(config.Checkpoint)
+	workersLastInvokeTime := make(map[string]time.Time)
 	if err != nil {
-		workersLastInvokeTime = make(map[string]time.Time)
 		logger.Info("failed to parse checkpoint file")
+	} else {
+		for worker, info := range checkpoint.workerInfo {
+			workersLastInvokeTime[worker] = info.LastInvokeTime
+		}
 	}
 	newManager := Manager{
 		config:                config,
@@ -108,7 +121,12 @@ func NewManager(config *config.Config) (*Manager, error) {
 
 func (m *Manager) checkpoint() error {
 	file, _ := json.MarshalIndent(m.workersLastInvokeTime, "", "  ")
-	err := ioutil.WriteFile(m.config.Checkpoint, file, 0644)
+	ckpt := fmt.Sprintf("%s.tmp", m.config.Checkpoint)
+	err := ioutil.WriteFile(ckpt, file, 0644)
+	if err != nil {
+		return err
+	}
+	err = os.Rename(ckpt, m.config.Checkpoint)
 	if err != nil {
 		return err
 	}
