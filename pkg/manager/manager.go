@@ -106,15 +106,15 @@ func NewManager(config *config.Config) (*Manager, error) {
 		if disabled, ok := repoConfig["disabled"].(bool); ok && disabled {
 			continue
 		}
-		w, err := worker.NewWorker(repoConfig)
-		if err != nil {
-			return nil, err
-		}
-		newManager.workers = append(newManager.workers, w)
 		name, _ := repoConfig["name"].(string)
 		if _, ok := newManager.workersLastInvokeTime[name]; !ok {
 			newManager.workersLastInvokeTime[name] = time.Now().AddDate(-1, 0, 0)
 		}
+		w, err := worker.NewWorker(repoConfig, newManager.workersLastInvokeTime[name])
+		if err != nil {
+			return nil, err
+		}
+		newManager.workers = append(newManager.workers, w)
 	}
 	return &newManager, nil
 }
