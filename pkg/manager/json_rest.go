@@ -25,7 +25,7 @@ func (r *RestfulAPI) GetAPIHandler() http.Handler {
 	api := rest.NewApi()
 	api.Use(rest.DefaultDevStack...)
 	router, err := rest.MakeRouter(
-		rest.Get("/lug/v1/manager", r.getManagerStatusDetail),
+		rest.Get("/lug/v1/admin/manager/detail", r.getManagerStatusDetail),
 		rest.Get("/lug/v1/manager/summary", r.getManagerStatusSummary),
 		rest.Post("/lug/v1/admin/manager/start", r.startManager),
 		rest.Post("/lug/v1/admin/manager/stop", r.stopManager),
