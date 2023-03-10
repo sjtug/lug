@@ -317,7 +317,7 @@ func (m *Manager) GetStatus() *Status {
 	for _, w := range m.workers {
 		wConfig := w.GetConfig()
 		wStatus := w.GetStatus()
-		if hidden, ok := wConfig["disabled"].(bool); ok && !hidden {
+		if hidden, ok := wConfig["hidden"].(bool); !(ok && hidden) {
 			status.WorkerStatus[wConfig["name"].(string)] = wStatus
 		}
 	}
