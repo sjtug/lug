@@ -4,7 +4,9 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"os"
 	"reflect"
 
 	"github.com/davecgh/go-spew/spew"
@@ -78,7 +80,8 @@ func (c *Config) Parse(in io.Reader) (err error) {
 		}
 	}
 	for _, repo := range c.Repos {
-		for _, v := range repo {
+		var removeKeys []string
+		for k, v := range repo {
 			t := reflect.TypeOf(v)
 			if t == nil {
 				continue
@@ -92,8 +95,15 @@ func (c *Config) Parse(in io.Reader) (err error) {
 				reflect.Interface: true,
 			}
 			if _, ok := invalidKinds[kind]; ok {
-				return errors.New("nested property(e.g. arrays/maps) in Repos is disallowed: " + spew.Sdump(v))
+				removeKeys = append(removeKeys, k)
+				_, err := fmt.Fprintln(os.Stderr, "nested property(e.g. arrays/maps) in Repos ignored: "+spew.Sdump(v))
+				if err != nil {
+					return err
+				}
 			}
+		}
+		for _, k := range removeKeys {
+			delete(repo, k)
 		}
 	}
 	return err
