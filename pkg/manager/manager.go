@@ -220,7 +220,13 @@ func (m *Manager) Run() {
 		}).Debugf("Calling RunSync() to w %s", w.GetConfig()["name"])
 		go w.RunSync()
 	}
-	m.checkpoint()
+	err := m.checkpoint()
+	if err != nil {
+		m.logger.WithFields(logrus.Fields{
+			"event": "checkpoint_failed",
+			"error": err,
+		}).Error("Failed to checkpoint")
+	}
 	for {
 		// wait until config.Interval seconds has elapsed
 		select {
@@ -264,7 +270,13 @@ func (m *Manager) Run() {
 				// Here we do not checkpoint very concisely (e.g. every time after a successful sync).
 				// We just want to minimize re-sync after restarting lug.
 				if shouldCheckpoint {
-					m.checkpoint()
+					err := m.checkpoint()
+					if err != nil {
+						m.logger.WithFields(logrus.Fields{
+							"event": "checkpoint_failed",
+							"error": err,
+						}).Error("Failed to checkpoint")
+					}
 				}
 			}
 		case sig, ok := <-m.controlChan:
