@@ -4,7 +4,7 @@ package manager
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"time"
 
@@ -64,9 +64,9 @@ func fromCheckpoint(checkpointFile string) (*CheckPoint, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer jsonFile.Close()
+	defer func() { _ = jsonFile.Close() }()
 
-	data, err := ioutil.ReadAll(jsonFile)
+	data, err := io.ReadAll(jsonFile)
 	if err != nil {
 		return nil, err
 	}
@@ -89,8 +89,8 @@ func NewManager(config *config.Config) (*Manager, error) {
 	if err != nil {
 		logger.Info("failed to parse checkpoint file")
 	} else {
-		for worker, info := range checkpoint.WorkerInfo {
-			workersLastInvokeTime[worker] = info.LastInvokeTime
+		for name, info := range checkpoint.WorkerInfo {
+			workersLastInvokeTime[name] = info.LastInvokeTime
 		}
 	}
 	newManager := Manager{
@@ -131,7 +131,7 @@ func (m *Manager) checkpoint() error {
 		return err
 	}
 	ckpt := fmt.Sprintf("%s.tmp", m.config.Checkpoint)
-	err = ioutil.WriteFile(ckpt, file, 0644)
+	err = os.WriteFile(ckpt, file, 0644)
 	if err != nil {
 		return err
 	}
