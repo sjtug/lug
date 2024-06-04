@@ -4,13 +4,13 @@ package manager
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"io"
 	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/sjtug/lug/pkg/config"
 	"github.com/sjtug/lug/pkg/worker"
 )
@@ -51,7 +51,9 @@ type Status struct {
 }
 
 type WorkerCheckPoint struct {
-	LastInvokeTime time.Time `json:"last_invoke_time"`
+	LastInvokeTime time.Time  `json:"last_invoke_time"`
+	LastFinished   *time.Time `json:"last_finished,omitempty"`
+	Result         bool       `json:"result,omitempty"`
 }
 
 type CheckPoint struct {
@@ -79,6 +81,21 @@ func fromCheckpoint(checkpointFile string) (*CheckPoint, error) {
 	}
 
 	return &checkpoint, nil
+}
+
+func workerFromCheckpoint(repoConfig config.RepoConfig, checkpoint *CheckPoint, name string, lastInvokeTime time.Time) (worker.Worker, error) {
+	if checkpoint == nil {
+		return worker.NewWorker(repoConfig, lastInvokeTime, true)
+	}
+	info, ok := checkpoint.WorkerInfo[name]
+	if !ok {
+		return worker.NewWorker(repoConfig, lastInvokeTime, true)
+	}
+
+	if info.LastFinished == nil {
+		return worker.NewWorker(repoConfig, lastInvokeTime, info.Result)
+	}
+	return worker.NewWorker(repoConfig, *info.LastFinished, info.Result)
 }
 
 // NewManager creates a new manager with attached workers from config
@@ -110,7 +127,7 @@ func NewManager(config *config.Config) (*Manager, error) {
 		if _, ok := newManager.workersLastInvokeTime[name]; !ok {
 			newManager.workersLastInvokeTime[name] = time.Now().AddDate(-1, 0, 0)
 		}
-		w, err := worker.NewWorker(repoConfig, newManager.workersLastInvokeTime[name])
+		w, err := workerFromCheckpoint(repoConfig, checkpoint, name, newManager.workersLastInvokeTime[name])
 		if err != nil {
 			return nil, err
 		}
@@ -121,11 +138,21 @@ func NewManager(config *config.Config) (*Manager, error) {
 
 func (m *Manager) checkpoint() error {
 	ckptObj := &CheckPoint{WorkerInfo: make(map[string]WorkerCheckPoint)}
-	for k, t := range m.workersLastInvokeTime {
-		ckptObj.WorkerInfo[k] = WorkerCheckPoint{
-			LastInvokeTime: t,
+	for _, w := range m.workers {
+		name := w.GetConfig()["name"].(string)
+		status := w.GetStatus()
+		lastInvokeTime, ok := m.workersLastInvokeTime[name]
+		if !ok {
+			lastInvokeTime = time.Now().AddDate(-1, 0, 0)
+		}
+
+		ckptObj.WorkerInfo[name] = WorkerCheckPoint{
+			LastInvokeTime: lastInvokeTime,
+			Result:         status.Result,
+			LastFinished:   &status.LastFinished,
 		}
 	}
+
 	file, err := json.MarshalIndent(ckptObj, "", "  ")
 	if err != nil {
 		return err
