@@ -34,7 +34,7 @@ type Status struct {
 }
 
 // NewWorker generates a worker by config and log.
-func NewWorker(cfg config.RepoConfig, lastFinished time.Time) (Worker, error) {
+func NewWorker(cfg config.RepoConfig, lastFinished time.Time, Result bool) (Worker, error) {
 	if syncType, ok := cfg["type"]; ok {
 		switch syncType {
 		case "rsync":
@@ -44,7 +44,7 @@ func NewWorker(cfg config.RepoConfig, lastFinished time.Time) (Worker, error) {
 			w, err := NewExecutorInvokeWorker(
 				newShellScriptExecutor(cfg),
 				Status{
-					Result:       true,
+					Result:       Result,
 					LastFinished: lastFinished,
 					Idle:         true,
 					Stdout:       make([]string, 0),

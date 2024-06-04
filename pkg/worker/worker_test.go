@@ -24,12 +24,12 @@ func TestNewExternalWorker(t *testing.T) {
 		"blahblah": "foobar",
 		"type":     "external",
 	}
-	_, err := NewWorker(c, time.Now())
+	_, err := NewWorker(c, time.Now(), true)
 	// worker with no name is not allowed
 	asrt.NotNil(err)
 
 	c["name"] = "test_external"
-	w, err := NewWorker(c, time.Now())
+	w, err := NewWorker(c, time.Now(), true)
 	// config with name and dummy kv pairs should be allowed
 	asrt.Nil(err)
 
@@ -48,7 +48,7 @@ func TestNewShellScriptWorker(t *testing.T) {
 
 	asrt := assert.New(t)
 
-	w, _ := NewWorker(c, time.Now())
+	w, _ := NewWorker(c, time.Now(), true)
 
 	asrt.Equal(true, w.GetStatus().Result)
 	asrt.Equal("shell_script", w.GetConfig()["type"])
@@ -187,7 +187,7 @@ func TestShellScriptWorkerArgParse(t *testing.T) {
 		"name":   "shell",
 		"script": "wc -l /proc/stat",
 	}
-	w, err := NewWorker(c, time.Now())
+	w, err := NewWorker(c, time.Now(), true)
 
 	asrt := assert.New(t)
 	asrt.Nil(err)
