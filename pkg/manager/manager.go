@@ -53,7 +53,7 @@ type Status struct {
 type WorkerCheckPoint struct {
 	LastInvokeTime time.Time  `json:"last_invoke_time"`
 	LastFinished   *time.Time `json:"last_finished,omitempty"`
-	Result         bool       `json:"result,omitempty"`
+	Result         *bool      `json:"result,omitempty"`
 }
 
 type CheckPoint struct {
@@ -92,10 +92,15 @@ func workerFromCheckpoint(repoConfig config.RepoConfig, checkpoint *CheckPoint, 
 		return worker.NewWorker(repoConfig, lastInvokeTime, true)
 	}
 
-	if info.LastFinished == nil {
-		return worker.NewWorker(repoConfig, lastInvokeTime, info.Result)
+	result := true
+	if info.Result != nil {
+		result = *info.Result
 	}
-	return worker.NewWorker(repoConfig, *info.LastFinished, info.Result)
+	lastFinished := lastInvokeTime
+	if info.LastFinished != nil {
+		lastFinished = *info.LastFinished
+	}
+	return worker.NewWorker(repoConfig, lastFinished, result)
 }
 
 // NewManager creates a new manager with attached workers from config
@@ -148,7 +153,7 @@ func (m *Manager) checkpoint() error {
 
 		ckptObj.WorkerInfo[name] = WorkerCheckPoint{
 			LastInvokeTime: lastInvokeTime,
-			Result:         status.Result,
+			Result:         &status.Result,
 			LastFinished:   &status.LastFinished,
 		}
 	}
