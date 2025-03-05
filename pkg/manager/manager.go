@@ -311,6 +311,30 @@ END_OF_FINISH:
 	m.logger.WithField("event", "senf_exit_finish_end").Debug("Finished sending ExitFinish...")
 }
 
+// Run some specific worker once
+func (m *Manager) RunSpecificWorker(worker string) {
+	m.logger.Debugf("%p", m)
+
+	for _, w := range m.workers {
+		if worker == w.GetConfig()["name"] {
+			m.logger.WithFields(logrus.Fields{
+				"event":         "call_runsync",
+				"target_worker": w.GetConfig()["name"],
+			}).Debugf("Calling RunSync() to w %s", w.GetConfig()["name"])
+			go w.RunSync()
+
+			w.TriggerSync()
+			for !w.GetStatus().Idle {
+			}
+
+			return
+		}
+	}
+
+	m.logger.WithField("event", "unexpected_worker").Fatalf("%s worker not found!", worker)
+
+}
+
 func (m *Manager) expectChanVal(ch chan int, expected int) {
 	exitMsg, ok := <-ch
 	if ok {
