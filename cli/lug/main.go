@@ -27,6 +27,7 @@ Visit https://github.com/sjtug/lug for latest version`
 // CommandFlags stores parsed flags from command line
 type CommandFlags struct {
 	configFile   string
+	syncRepo     string
 	version      bool
 	license      bool
 	jsonAPIAddr  string
@@ -37,6 +38,7 @@ type CommandFlags struct {
 func getFlags() (flags CommandFlags) {
 	flag.StringVarP(&flags.configFile, "conf", "c", "config.yaml",
 		configHelp)
+	flag.StringVarP(&flags.syncRepo, "sync", "s", "", "manual sync repo")
 	flag.BoolVar(&flags.license, "license", false, "Prints license of used libraries")
 	flag.BoolVarP(&flags.version, "version", "v", false, "Prints version of lug")
 	flag.StringVarP(&flags.jsonAPIAddr, "jsonapi", "j", "", "JSON API Address")
@@ -62,6 +64,7 @@ func prepareLogger(logLevel log.Level, logStashAddr string, additionalFields map
 }
 
 var cfg config.Config
+var manualSyncRepo string
 
 func init() {
 	flags := getFlags()
@@ -79,6 +82,8 @@ func init() {
 		fmt.Print(licenseText)
 		os.Exit(0)
 	}
+
+	manualSyncRepo = flags.syncRepo
 
 	file, err := os.Open(flags.configFile)
 	if err != nil {
@@ -107,6 +112,10 @@ func main() {
 	handler := jsonapi.GetAPIHandler()
 	go http.ListenAndServe(cfg.JsonAPIConfig.Address, handler)
 
-	go exporter.Expose(cfg.ExporterAddr)
-	m.Run()
+	if manualSyncRepo == "" {
+		go exporter.Expose(cfg.ExporterAddr)
+		m.Run()
+	} else {
+		m.RunSpecificWorker(manualSyncRepo)
+	}
 }
