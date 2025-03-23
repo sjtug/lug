@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/cosiner/argv"
-	"github.com/davecgh/go-spew/spew"
-	"github.com/sirupsen/logrus"
-	"github.com/sjtug/lug/pkg/config"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/davecgh/go-spew/spew"
+	"github.com/sirupsen/logrus"
+	"github.com/sjtug/lug/pkg/config"
+	"mvdan.cc/sh/v3/shell"
 )
 
 // shellScriptExecutor implements executor interface
@@ -63,18 +64,25 @@ func getOsEnvsAsMap() (result map[string]string) {
 
 // RunSync launches the worker
 func (w *shellScriptExecutor) RunOnce(logger *logrus.Entry, utilities []utility) (execResult, error) {
-	script, _ := w.cfg["script"]
+	script, ok := w.cfg["script"]
+	if !ok {
+		return execResult{"", ""}, errors.New("script not found in config")
+	}
 
-	args, err := argv.Argv([]rune(script.(string)), getOsEnvsAsMap(), argv.Run)
+	// Split the command string into fields, respecting shell quoting rules
+	fields, err := shell.Fields(script.(string), func(name string) string {
+		return getOsEnvsAsMap()[name]
+	})
 	if err != nil {
-		return execResult{"", ""}, errors.New(fmt.Sprint("Failed to parse argument:", err.Error()))
+		return execResult{"", ""}, fmt.Errorf("failed to parse command: %w", err)
 	}
-	if len(args) > 1 {
-		return execResult{"", ""}, errors.New("pipe is not supported in shell_script_worker")
+
+	if len(fields) == 0 {
+		return execResult{"", ""}, errors.New("empty command")
 	}
-	invokeArgs := args[0]
-	logger.Debug("Invoking args:", invokeArgs)
-	cmd := exec.Command(invokeArgs[0], invokeArgs[1:]...)
+
+	logger.Debug("Invoking command:", fields[0], "with args:", fields[1:])
+	cmd := exec.Command(fields[0], fields[1:]...)
 
 	// Forwarding config items to shell script as environmental variables
 	// Adds a LUG_ prefix to their key

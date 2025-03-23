@@ -24,6 +24,8 @@ logstashaddr: "172.0.0.4:6000" # TCP Address of logstash. empty means no logstas
 dummy: # place your anchor here!
     common_interval: &common_interval
       interval: 3600
+    common_retry: &commone_retry
+      retry: 3
 repos:
     - type: shell_script
       script: rsync -av rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/ /tmp/putty
@@ -33,7 +35,7 @@ repos:
     - type: external
       name: ubuntu
       proxy_to: http://ftp.sjtu.edu.cn/ubuntu/
-      <<: *common_interval
+      <<: [*common_interval, *common_retry] # use array for importing multiple anchors
 # You can add more repos here, different repos may have different worker types,
 # refer to Worker Types section for detailed explanation
 ```
@@ -42,7 +44,7 @@ repos:
 
 Contributors should push to their own branch. Reviewed code will be merged to `master` branch.
 
-Currently this project assumes Go >= 1.8.
+Currently this project assumes Go >= 1.23.
 
 1. set your `GOPATH` to a directory: `export GOPATH=/home/go`. Set `$GOPATH/bin` to your `$PATH`: `export PATH=$PATH:$GOPATH/bin`
 2. `go get github.com/sjtug/lug`

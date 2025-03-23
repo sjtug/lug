@@ -69,12 +69,10 @@ repos:
     str: string
     retry: 3
   - type: shell_script
-    <<: *common1
-    <<: *common2
+    <<: [*common1, *common2]
 `
 	c := Config{}
-	var err error
-	err = c.Parse(strings.NewReader(testStr))
+	err := c.Parse(strings.NewReader(testStr))
 	asrt := assert.New(t)
 	asrt.NoError(err)
 	asrt.Equal(2, len(c.Repos))
