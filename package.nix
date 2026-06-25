@@ -8,4 +8,6 @@ buildGoApplication {
   pwd = ./.;
   src = ./.;
   modules = ./gomod2nix.toml;
+
+  meta.mainProgram = "lug";
 }

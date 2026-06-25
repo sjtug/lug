@@ -25,6 +25,10 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    nix2container = {
+      url = "github:nlewo/nix2container";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -87,6 +91,10 @@
 
           packages.default = pkgs.callPackage ./package.nix {
             inherit (inputs.gomod2nix.legacyPackages.${system}) buildGoApplication;
+          };
+          packages.docker-image = pkgs.callPackage ./docker.nix {
+            lug = config.packages.default;
+            inherit (inputs.nix2container.packages.${system}) nix2container;
           };
 
           devShells.default = pkgs.mkShell {

@@ -7,6 +7,9 @@
 /lug
 config.yaml
 checkpoint.json
+pkg/manager/.tmp
+result
+result-*
 
 # Folders
 _obj

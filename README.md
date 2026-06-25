@@ -12,6 +12,20 @@ Extensible backend of software mirror. Read our [Wiki](https://github.com/sjtug/
 docker run -d -v {{host_path}}:{{docker_path}} -v {{absolute_path_of_config.yaml}}:/go/src/github.com/sjtug/lug/config.yaml htfy96/lug {other args...}
 ```
 
+### Build a container image with nix2container
+
+There is a `docker-image` flake output (built with [nix2container](https://github.com/nlewo/nix2container)) for testing the daemon in a container. It layers the `lug` binary plus the runtime tools (`rsync`, `coreutils`, ...) the `shell_script` workers exec, and sets `PATH`/`CHECKPOINT_DIR` accordingly.
+
+```sh
+# load into podman (or use copyToDockerDaemon for docker)
+nix run '.#docker-image.copyToPodman'
+
+# run with a config mounted at /config.yaml (the image's default Cmd):
+podman run --rm -v $PWD/config.example.yaml:/config.yaml:ro lug:latest
+```
+
+Logs are emitted as a JSON event stream to stdout (see PLAN, Phase 0 / 12-factor XI), so `podman run ... | jq` works:
+
 ### config.yaml
 
 The below configuration may be outdated. Refer to [config.example.yaml](https://github.com/sjtug/lug/blob/master/config.example.yaml)
