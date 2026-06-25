@@ -25,7 +25,7 @@ func NewExternalWorker(cfg config.RepoConfig) (*ExternalWorker, error) {
 	name := rawName.(string)
 	return &ExternalWorker{
 		name:   name,
-		logger: log.WithField("worker", name),
+		logger: log.WithField("repo", name),
 		cfg:    cfg,
 	}, nil
 }
