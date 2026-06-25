@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"sync"
 	"time"
@@ -49,7 +51,7 @@ func NewExecutorInvokeWorker(exector executor, status Status,
 		cfg:            cfg,
 		signal:         signal,
 		name:           name,
-		logger:         log.WithField("worker", name),
+		logger:         log.WithField("repo", name),
 		executor:       exector,
 	}
 	if retry_generic, ok := cfg["retry"]; ok {
@@ -95,39 +97,46 @@ func (eiw *executorInvokeWorker) GetConfig() config.RepoConfig {
 
 func (w *executorInvokeWorker) RunSync() {
 	for {
-		w.logger.WithField("event", "start_wait_signal").Debug("start waiting for signal")
+		// Before the signal there is no sync_id yet; reuse the repo-scoped logger.
+		logger := w.logger
+		logger.WithField("event", "start_wait_signal").Debug("start waiting for signal")
 		func() {
 			w.rwmutex.Lock()
 			defer w.rwmutex.Unlock()
 			w.idle = true
 		}()
 		<-w.signal
-		w.logger.WithField("event", "signal_received").Debug("finished waiting for signal")
+
+		// A new sync run begins: stamp a sync_id so every line of this run
+		// can be correlated in the event stream (see PLAN, Phase 0).
+		syncID := shortID()
+		logger = w.logger.WithField("sync_id", syncID)
+		logger.WithField("event", "signal_received").Debug("finished waiting for signal")
 		func() {
 			w.rwmutex.Lock()
 			defer w.rwmutex.Unlock()
 			w.idle = false
 		}()
-		w.logger.WithField("event", "start_execution").Info("start execution")
+		logger.WithField("event", "start_execution").Info("sync started")
 		retry_limit := w.retry
 		var result execResult
 		var err error
 		for retry_cnt := 1; retry_cnt <= retry_limit; retry_cnt++ {
-			w.logger.WithField("event", "invoke_executor").WithField(
+			logger.WithField("event", "invoke_executor").WithField(
 				"try_cnt", retry_cnt).Debugf("Invoke executor for the %v time", retry_cnt)
 			utilities := []utility{newRlimit(w)}
-			result, err = w.executor.RunOnce(w.logger, utilities)
+			result, err = w.executor.RunOnce(logger, utilities)
 			if err == nil {
 				break
 			}
-			w.logger.WithField("event", "invoke_executor_fail").WithField(
+			logger.WithField("event", "invoke_executor_fail").WithField(
 				"try_cnt", retry_cnt).Infof(
 				"Failed on the %v-th executor. Error: %v", retry_cnt, err.Error())
-			w.logger.Debug("Stderr: ", result.Stderr)
+			logger.Debug("Stderr: ", result.Stderr)
 			time.Sleep(w.retry_interval)
 		}
 		if err != nil {
-			w.logger.WithField("event", "execution_fail").Error(err.Error())
+			logger.WithField("event", "execution_fail").Error(err.Error())
 			exporter.GetInstance().SyncFail(w.name)
 			func() {
 				w.rwmutex.Lock()
@@ -135,24 +144,39 @@ func (w *executorInvokeWorker) RunSync() {
 				w.result = false
 				w.stdout.Put(result.Stdout)
 				w.stderr.Put(result.Stderr)
-				w.logger.Infof("Stderr: %s", result.Stderr)
-				w.logger.Debugf("Stdout: %s", result.Stdout)
+				logger.Infof("Stderr: %s", result.Stderr)
+				logger.Debugf("Stdout: %s", result.Stdout)
 				w.idle = true
 			}()
+			logger.WithField("event", "execution_ended").Info("sync ended")
 			continue
 		}
 
 		exporter.GetInstance().SyncSuccess(w.name)
-		w.logger.WithField("event", "execution_succeed").Info("succeed")
-		w.logger.Infof("Stderr: %s", result.Stderr)
+		logger.WithField("event", "execution_succeed").Info("sync succeeded")
+		logger.Infof("Stderr: %s", result.Stderr)
 		func() {
 			w.rwmutex.Lock()
 			defer w.rwmutex.Unlock()
 			w.stderr.Put(result.Stderr)
-			w.logger.Debugf("Stdout: %s", result.Stdout)
+			logger.Debugf("Stdout: %s", result.Stdout)
 			w.stdout.Put(result.Stdout)
 			w.result = true
 			w.lastFinished = time.Now()
 		}()
+		logger.WithField("event", "execution_ended").Info("sync ended")
 	}
+}
+
+// shortID generates a short unique ID without external dependencies.
+// It returns 4 bytes of crypto-random hex (8 chars), enough to correlate
+// all log lines within a single sync attempt without collision risk.
+func shortID() string {
+	b := make([]byte, 4)
+	if _, err := rand.Read(b); err != nil {
+		// rand.Read should not fail in practice; fall back to a fixed marker
+		// so logging never breaks on ID generation.
+		return "00000000"
+	}
+	return hex.EncodeToString(b)
 }
