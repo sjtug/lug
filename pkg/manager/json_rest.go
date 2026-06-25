@@ -55,7 +55,9 @@ type MangerStatusSimple struct {
 func (r *RestfulAPI) getManagerStatusCommon(w rest.ResponseWriter, req *rest.Request, detailed bool) {
 	rawStatus := r.manager.GetStatus()
 	if detailed {
-		w.WriteJson(rawStatus)
+		if err := w.WriteJson(rawStatus); err != nil {
+			log.Error(err)
+		}
 		return
 	}
 	managerStatusSimple := MangerStatusSimple{
@@ -70,7 +72,9 @@ func (r *RestfulAPI) getManagerStatusCommon(w rest.ResponseWriter, req *rest.Req
 			Idle:         rawWorkerStatus.Idle,
 		}
 	}
-	w.WriteJson(managerStatusSimple)
+	if err := w.WriteJson(managerStatusSimple); err != nil {
+		log.Error(err)
+	}
 }
 
 func (r *RestfulAPI) getManagerStatusDetail(w rest.ResponseWriter, req *rest.Request) {

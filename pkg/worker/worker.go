@@ -64,5 +64,5 @@ func NewWorker(cfg config.RepoConfig, lastFinished time.Time, Result bool) (Work
 			return w, nil
 		}
 	}
-	return nil, errors.New("Fail to create a new worker")
+	return nil, errors.New("fail to create a new worker")
 }

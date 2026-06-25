@@ -107,7 +107,7 @@ func (e *Exporter) UpdateDiskUsage(worker string, path string) {
 		"path":   path,
 	})
 	logger.WithField("event", "update_disk_usage").Info("Invoke UpdateDiskUsage")
-	if !found || time.Now().Sub(lastUpdateTime) > updateDiskUsageThrottle {
+	if !found || time.Since(lastUpdateTime) > updateDiskUsageThrottle {
 		logger.Debug("background update_disk_usage launched")
 		// first, we set it to infinity (2037-01-01)
 		// Note that we cannot use a larger value due to Y2038 problem on *nix

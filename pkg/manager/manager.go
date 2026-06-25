@@ -4,10 +4,11 @@ package manager
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"io"
 	"os"
 	"time"
+
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/sirupsen/logrus"
 
@@ -361,7 +362,7 @@ func (m *Manager) GetStatus() *Status {
 	for _, w := range m.workers {
 		wConfig := w.GetConfig()
 		wStatus := w.GetStatus()
-		if hidden, ok := wConfig["hidden"].(bool); !(ok && hidden) {
+		if hidden, ok := wConfig["hidden"].(bool); !ok || !hidden {
 			status.WorkerStatus[wConfig["name"].(string)] = wStatus
 		}
 	}

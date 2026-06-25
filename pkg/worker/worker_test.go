@@ -171,9 +171,9 @@ func TestUtilityRlimit(t *testing.T) {
 
 	cmd := exec.Command("rev")
 	cmd.Stdin = newLimitReader(20000000) // > 10M = 10485760
-	rlimitUtility.preHook()
+	asrt.NoError(rlimitUtility.preHook())
 	err1 := cmd.Start()
-	rlimitUtility.postHook()
+	asrt.NoError(rlimitUtility.postHook())
 	var err2 error
 	if err1 == nil {
 		err2 = cmd.Wait()

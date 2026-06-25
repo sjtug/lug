@@ -31,8 +31,7 @@ func (r *rlimit) preHook() error {
 	}
 	if rlimitMem, ok := cfg["rlimit_mem"]; ok {
 		if bytes, err := humanize.ParseBytes(rlimitMem.(string)); err == nil {
-			var rlimitNew syscall.Rlimit
-			rlimitNew = r.oldRlimit
+			rlimitNew := r.oldRlimit
 			rlimitNew.Cur = bytes
 			err := syscall.Setrlimit(syscall.RLIMIT_AS, &rlimitNew)
 			if err != nil {
