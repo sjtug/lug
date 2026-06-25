@@ -13,7 +13,7 @@ func DiskUsage(curPath string) (int64, error) {
 	if err != nil {
 		return size, err
 	}
-	defer dir.Close()
+	defer func() { _ = dir.Close() }()
 
 	files, err := dir.Readdir(-1)
 	if err != nil {

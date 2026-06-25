@@ -29,11 +29,11 @@ func newShellScriptExecutor(cfg config.RepoConfig) *shellScriptExecutor {
 func convertMapToEnvVars(m map[string]interface{}) (map[string]string, error) {
 	result := map[string]string{}
 	for k, v := range m {
-		switch v.(type) {
+		switch v := v.(type) {
 		case nil:
 			// skip
 		case bool:
-			if v.(bool) {
+			if v {
 				result["LUG_"+k] = "1"
 			}
 		case int, uint, float32, float64, string:

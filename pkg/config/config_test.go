@@ -98,7 +98,7 @@ repos:
 	err = c.Parse(strings.NewReader(testStr))
 
 	asrt := assert.New(t)
-	asrt.Equal("Interval can't be negative", err.Error())
+	asrt.Equal("interval can't be negative", err.Error())
 
 	testStr = `interval: 25
 loglevel: 6

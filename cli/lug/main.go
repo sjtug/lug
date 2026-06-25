@@ -67,8 +67,8 @@ func init() {
 	flags := getFlags()
 
 	cfgViper := config.CfgViper
-	cfgViper.BindPFlag("json_api.address", flag.Lookup("jsonapi"))
-	cfgViper.BindPFlag("exporter_address", flag.Lookup("exporter"))
+	_ = cfgViper.BindPFlag("json_api.address", flag.Lookup("jsonapi"))
+	_ = cfgViper.BindPFlag("exporter_address", flag.Lookup("exporter"))
 
 	if flags.version {
 		fmt.Print(lugVersionInfo)
@@ -86,7 +86,7 @@ func init() {
 		fmt.Print(configHelp)
 		os.Exit(0)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	cfg = config.Config{}
 	err = cfg.Parse(file)
 
@@ -105,7 +105,11 @@ func main() {
 	}
 	jsonapi := manager.NewRestfulAPI(m)
 	handler := jsonapi.GetAPIHandler()
-	go http.ListenAndServe(cfg.JsonAPIConfig.Address, handler)
+	go func() {
+		if err := http.ListenAndServe(cfg.JsonAPIConfig.Address, handler); err != nil {
+			log.Error(err)
+		}
+	}()
 
 	go exporter.Expose(cfg.ExporterAddr)
 	m.Run()

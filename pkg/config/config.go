@@ -70,9 +70,10 @@ func (c *Config) Parse(in io.Reader) (err error) {
 	err = CfgViper.UnmarshalExact(&c)
 	if err == nil {
 		if c.Interval < 0 {
-			return errors.New("Interval can't be negative")
+			return errors.New("interval can't be negative")
 		}
-		if c.LogLevel < 0 || c.LogLevel > 5 {
+		// logrus.Level is uint32 (non-negative)
+		if c.LogLevel > 5 {
 			return errors.New("loglevel must be 0-5")
 		}
 		if c.ConcurrentLimit <= 0 {

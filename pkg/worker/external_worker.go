@@ -20,7 +20,7 @@ type ExternalWorker struct {
 func NewExternalWorker(cfg config.RepoConfig) (*ExternalWorker, error) {
 	rawName, ok := cfg["name"]
 	if !ok {
-		return nil, errors.New("Name is required for external worker")
+		return nil, errors.New("name is required for external worker")
 	}
 	name := rawName.(string)
 	return &ExternalWorker{

@@ -2,13 +2,14 @@ package worker
 
 import (
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/pkg/config"
 	"github.com/sjtug/lug/pkg/exporter"
 	"github.com/sjtug/lug/pkg/helper"
-	"sync"
-	"time"
 )
 
 type executorInvokeWorker struct {
@@ -35,7 +36,7 @@ func NewExecutorInvokeWorker(exector executor, status Status,
 	signal chan int) (*executorInvokeWorker, error) {
 	name, ok := cfg["name"].(string)
 	if !ok {
-		return nil, errors.New("No name in config")
+		return nil, errors.New("no name in config")
 	}
 	w := &executorInvokeWorker{
 		idle:           status.Idle,
