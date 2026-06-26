@@ -2,6 +2,7 @@ package worker
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -63,7 +64,7 @@ func getOsEnvsAsMap() (result map[string]string) {
 }
 
 // RunSync launches the worker
-func (w *shellScriptExecutor) RunOnce(logger *logrus.Entry, utilities []utility) (execResult, error) {
+func (w *shellScriptExecutor) RunOnce(ctx context.Context, logger *logrus.Entry, utilities []utility) (execResult, error) {
 	script, ok := w.cfg["script"]
 	if !ok {
 		return execResult{"", ""}, errors.New("script not found in config")
@@ -82,7 +83,7 @@ func (w *shellScriptExecutor) RunOnce(logger *logrus.Entry, utilities []utility)
 	}
 
 	logger.Debug("Invoking command:", fields[0], "with args:", fields[1:])
-	cmd := exec.Command(fields[0], fields[1:]...)
+	cmd := exec.CommandContext(ctx, fields[0], fields[1:]...)
 
 	// Forwarding config items to shell script as environmental variables
 	// Adds a LUG_ prefix to their key

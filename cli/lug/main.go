@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/cheshir/logrustash"
@@ -117,6 +119,19 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// 12-factor IX: dispose on SIGINT/SIGTERM. The cancellable context is
+	// propagated to workers so in-flight rsync children (exec.CommandContext)
+	// are killed rather than orphaned, and m.Run() returns so main exits 0.
+	m.InstallShutdownContext()
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigCh
+		log.WithField("event", "signal_received").WithField("signal", sig.String()).Info("shutting down")
+		m.Shutdown()
+	}()
+
 	jsonapi := manager.NewRestfulAPI(m)
 	handler := jsonapi.GetAPIHandler()
 	go func() {
@@ -127,4 +142,5 @@ func main() {
 
 	go exporter.Expose(cfg.ExporterAddr)
 	m.Run()
+	log.WithField("event", "exited").Info("lug exited")
 }

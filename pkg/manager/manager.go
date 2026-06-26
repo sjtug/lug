@@ -2,6 +2,7 @@
 package manager
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -42,6 +43,10 @@ type Manager struct {
 	// storing index of worker to launch
 	pendingQueue []int
 	logger       *logrus.Entry
+	// rootCtx is cancelled on shutdown so workers honour graceful exit
+	// and kill in-flight rsync children (12-factor IX).
+	rootCtx    context.Context
+	rootCancel context.CancelFunc
 }
 
 // Status holds the status of a manager and its workers
@@ -124,6 +129,7 @@ func NewManager(config *config.Config) (*Manager, error) {
 		finishChan:            make(chan int),
 		running:               true,
 		logger:                logger,
+		rootCtx:               context.Background(),
 	}
 	for _, repoConfig := range config.Repos {
 		if disabled, ok := repoConfig["disabled"].(bool); ok && disabled {
@@ -139,7 +145,46 @@ func NewManager(config *config.Config) (*Manager, error) {
 		}
 		newManager.workers = append(newManager.workers, w)
 	}
+	newManager.propagateContext()
 	return &newManager, nil
+}
+
+// contextSetter is implemented by workers that honour a shutdown context
+// (currently executorInvokeWorker). ExternalWorker is a stub that blocks
+// forever, so it is skipped — it has no child process to kill anyway.
+type contextSetter interface {
+	SetContext(context.Context)
+}
+
+// propagateContext pushes the manager's root context to every worker that
+// supports it, so children started via exec.CommandContext die on shutdown.
+func (m *Manager) propagateContext() {
+	for _, w := range m.workers {
+		if s, ok := w.(contextSetter); ok {
+			s.SetContext(m.rootCtx)
+		}
+	}
+}
+
+// InstallShutdownContext replaces the manager's root context with a new
+// cancellable one bound to the caller's signal handler, and re-propagates
+// it to workers. Call once from main after signal.Notify setup.
+func (m *Manager) InstallShutdownContext() context.CancelFunc {
+	ctx, cancel := context.WithCancel(context.Background())
+	m.rootCtx = ctx
+	m.rootCancel = cancel
+	m.propagateContext()
+	return cancel
+}
+
+// Shutdown cancels the root context and stops the run loop; safe to call
+// from a signal handler goroutine. It triggers the existing Exit() path
+// so Run() returns and main can exit cleanly (12-factor IX disposability).
+func (m *Manager) Shutdown() {
+	if m.rootCancel != nil {
+		m.rootCancel()
+	}
+	m.Exit()
 }
 
 func (m *Manager) checkpoint() error {

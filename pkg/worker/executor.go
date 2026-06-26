@@ -1,6 +1,10 @@
 package worker
 
-import "github.com/sirupsen/logrus"
+import (
+	"context"
+
+	"github.com/sirupsen/logrus"
+)
 
 type execResult struct {
 	Stdout string
@@ -9,6 +13,8 @@ type execResult struct {
 
 // executor is a layer beneath worker, called by executorInvokeWorker
 type executor interface {
-	// When called, the executor performs sync for one time
-	RunOnce(logger *logrus.Entry, utilities []utility) (execResult, error)
+	// RunOnce performs a single sync attempt. The context is honoured for
+	// graceful shutdown: an in-flight command started via exec.CommandContext
+	// is killed when ctx is cancelled (12-factor IX — no orphaned children).
+	RunOnce(ctx context.Context, logger *logrus.Entry, utilities []utility) (execResult, error)
 }

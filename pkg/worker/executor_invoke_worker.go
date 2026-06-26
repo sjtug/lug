@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -28,6 +29,10 @@ type executorInvokeWorker struct {
 	signal         chan int
 	logger         *log.Entry
 	rwmutex        sync.RWMutex
+	// ctx governs graceful shutdown: when cancelled, in-flight children
+	// started via exec.CommandContext are killed (12-factor IX) and pending
+	// retries abort. Defaults to context.Background() (today's behaviour).
+	ctx context.Context
 }
 
 // creates a new executorInvokeWorker, which encapsules an executor
@@ -53,6 +58,7 @@ func NewExecutorInvokeWorker(exector executor, status Status,
 		name:           name,
 		logger:         log.WithField("repo", name),
 		executor:       exector,
+		ctx:            context.Background(),
 	}
 	if retry_generic, ok := cfg["retry"]; ok {
 		if retry, ok := retry_generic.(int); ok {
@@ -75,6 +81,13 @@ func NewExecutorInvokeWorker(exector executor, status Status,
 
 func (eiw *executorInvokeWorker) TriggerSync() {
 	eiw.signal <- 1
+}
+
+// SetContext installs the shutdown context. The manager sets this to a
+// context derived from its root (cancelled on SIGTERM/SIGINT) so the
+// worker's child processes die with the daemon instead of orphaning.
+func (eiw *executorInvokeWorker) SetContext(ctx context.Context) {
+	eiw.ctx = ctx
 }
 
 func (eiw *executorInvokeWorker) GetStatus() Status {
@@ -105,7 +118,14 @@ func (w *executorInvokeWorker) RunSync() {
 			defer w.rwmutex.Unlock()
 			w.idle = true
 		}()
-		<-w.signal
+		// Wait for a trigger OR shutdown — so a cancelled context exits RunSync
+		// instead of blocking on the signal channel forever.
+		select {
+		case <-w.ctx.Done():
+			logger.WithField("event", "shutdown").Info("worker shutting down")
+			return
+		case <-w.signal:
+		}
 
 		// A new sync run begins: stamp a sync_id so every line of this run
 		// can be correlated in the event stream (see PLAN, Phase 0).
@@ -125,7 +145,7 @@ func (w *executorInvokeWorker) RunSync() {
 			logger.WithField("event", "invoke_executor").WithField(
 				"try_cnt", retry_cnt).Debugf("Invoke executor for the %v time", retry_cnt)
 			utilities := []utility{newRlimit(w)}
-			result, err = w.executor.RunOnce(logger, utilities)
+			result, err = w.executor.RunOnce(w.ctx, logger, utilities)
 			if err == nil {
 				break
 			}
@@ -133,7 +153,13 @@ func (w *executorInvokeWorker) RunSync() {
 				"try_cnt", retry_cnt).Infof(
 				"Failed on the %v-th executor. Error: %v", retry_cnt, err.Error())
 			logger.Debug("Stderr: ", result.Stderr)
-			time.Sleep(w.retry_interval)
+			// Abort retry sleep on shutdown rather than blocking a full interval.
+			select {
+			case <-time.After(w.retry_interval):
+			case <-w.ctx.Done():
+				logger.WithField("event", "shutdown_during_retry").Info("worker shutting down")
+				return
+			}
 		}
 		if err != nil {
 			logger.WithField("event", "execution_fail").Error(err.Error())

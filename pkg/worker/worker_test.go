@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"io"
 	"os/exec"
 	"strings"
@@ -100,7 +101,7 @@ type dummyExecutor struct {
 	RunCnt int32
 }
 
-func (d *dummyExecutor) RunOnce(logger *logrus.Entry, utilities []utility) (execResult, error) {
+func (d *dummyExecutor) RunOnce(ctx context.Context, logger *logrus.Entry, utilities []utility) (execResult, error) {
 	atomic.AddInt32(&d.RunCnt, 1)
 	return execResult{"", ""}, errors.New("dummy error")
 }
