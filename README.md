@@ -7,24 +7,46 @@
 
 Extensible backend of software mirror. Read our [Wiki](https://github.com/sjtug/lug/wiki) for usage and guides for developmenet.
 
-## Use it in docker
-```
-docker run -d -v {{host_path}}:{{docker_path}} -v {{absolute_path_of_config.yaml}}:/go/src/github.com/sjtug/lug/config.yaml htfy96/lug {other args...}
-```
+## Run it in a container
 
-### Build a container image with nix2container
+The refactor branch provides a nix2container image for local/containerized testing. The image runs `lug` directly as PID 1 (no shell wrapper), defaults to `-c /config.yaml`, and also ships a slim `lugctl` admin client on `PATH`.
 
-There is a `docker-image` flake output (built with [nix2container](https://github.com/nlewo/nix2container)) for testing the daemon in a container. It layers the `lug` binary plus the runtime tools (`rsync`, `coreutils`, ...) the `shell_script` workers exec, and sets `PATH`/`CHECKPOINT_DIR` accordingly.
+### Build/load with nix2container
+
+There is a `docker-image` flake output (built with [nix2container](https://github.com/nlewo/nix2container)) for testing the daemon in a container. It layers the `lug` and `lugctl` binaries plus the runtime tools (`rsync`, `bash`, `coreutils`, ...) the `shell_script` workers exec, and sets `PATH`/`CHECKPOINT_DIR` accordingly.
 
 ```sh
+# optional: build the image JSON closure
+nix build .#docker-image
+
 # load into podman (or use copyToDockerDaemon for docker)
 nix run '.#docker-image.copyToPodman'
 
 # run with a config mounted at /config.yaml (the image's default Cmd):
-podman run --rm -v $PWD/config.example.yaml:/config.yaml:ro lug:latest
+podman run --rm --net=host -v ./config.example.yaml:/config.yaml:ro lug:latest
 ```
 
-Logs are emitted as a JSON event stream to stdout (see PLAN, Phase 0 / 12-factor XI), so `podman run ... | jq` works:
+Logs are emitted as a JSON event stream to stdout (see PLAN, Phase 0 / 12-factor XI), so `podman run ... | jq` works.
+
+### Admin commands with `lugctl`
+
+`lugctl` is a one-off control-plane client for a running Lug daemon. It defaults to `LUG_API=http://localhost:7001`, which means it works naturally inside the daemon container:
+
+```sh
+docker compose exec lug lugctl summary
+docker compose exec lug lugctl status --repo ubuntu
+docker compose exec lug lugctl sync --repo ubuntu
+docker compose exec lug lugctl stop
+docker compose exec lug lugctl exit
+```
+
+For non-`compose exec` use, point it at the daemon explicitly:
+
+```sh
+LUG_API=http://lug:7001 lugctl status
+```
+
+The admin endpoints are intended for the internal Compose network; do not expose `/lug/v1/admin/*` publicly.
 
 ### config.yaml
 
@@ -58,14 +80,27 @@ repos:
 
 Contributors should push to their own branch. Reviewed code will be merged to `master` branch.
 
-Currently this project assumes Go >= 1.23.
+This branch is developed with the flake dev shell. If `direnv` is enabled:
 
-1. set your `GOPATH` to a directory: `export GOPATH=/home/go`. Set `$GOPATH/bin` to your `$PATH`: `export PATH=$PATH:$GOPATH/bin`
-2. `go get github.com/sjtug/lug`
-3. Install dep by `curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh`
-3. `cd $GOPATH/src/github.com/sjtug/lug && dep ensure`
-4. Modify code, then use `go build .` to build binary, or test with `go test $(go list ./... | grep -v /vendor/)`
-5. Run `scripts/gen_license.sh` before committing your code
+```sh
+direnv allow
+go build ./...
+go test ./...
+```
+
+Or run commands through the dev shell explicitly:
+
+```sh
+direnv exec . go build ./...
+direnv exec . go test ./...
+```
+
+The default Nix package builds both commands:
+
+```sh
+nix build .#default
+ls result/bin   # lug  lugctl
+```
 
 NOTICE: Please attach test files when contributing to your module
 
