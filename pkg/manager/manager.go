@@ -413,3 +413,30 @@ func (m *Manager) GetStatus() *Status {
 	}
 	return &status
 }
+
+// TriggerRepoByName triggers a one-off sync for the named repo against its
+// live worker (the admin/control-plane path, used by lugctl). It searches
+// the manager's in-memory workers and calls TriggerSync() on the match,
+// so the sync runs within the daemon and reuses its scheduler/concurrency
+// cap — no second process races over the repos. Returns false if not found.
+func (m *Manager) TriggerRepoByName(name string) bool {
+	for _, w := range m.workers {
+		if wConfig := w.GetConfig(); wConfig["name"] == name {
+			w.TriggerSync()
+			return true
+		}
+	}
+	return false
+}
+
+// GetRepoStatus returns the live status of one repo (unfiltered, unlike
+// GetStatus which hides 'hidden' repos) for the admin/details API. The
+// second return is false when the repo is unknown.
+func (m *Manager) GetRepoStatus(name string) (worker.Status, bool) {
+	for _, w := range m.workers {
+		if wConfig := w.GetConfig(); wConfig["name"] == name {
+			return w.GetStatus(), true
+		}
+	}
+	return worker.Status{}, false
+}

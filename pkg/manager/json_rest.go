@@ -27,6 +27,8 @@ func (r *RestfulAPI) GetAPIHandler() http.Handler {
 	router, err := rest.MakeRouter(
 		rest.Get("/lug/v1/admin/manager/detail", r.getManagerStatusDetail),
 		rest.Get("/lug/v1/manager/summary", r.getManagerStatusSummary),
+		rest.Get("/lug/v1/admin/repos/:name", r.getRepoStatus),
+		rest.Post("/lug/v1/admin/repos/:name/sync", r.triggerRepoSync),
 		rest.Post("/lug/v1/admin/manager/start", r.startManager),
 		rest.Post("/lug/v1/admin/manager/stop", r.stopManager),
 		rest.Delete("/lug/v1/admin/manager", r.exitManager),
@@ -94,5 +96,39 @@ func (r *RestfulAPI) stopManager(w rest.ResponseWriter, req *rest.Request) {
 }
 
 func (r *RestfulAPI) exitManager(w rest.ResponseWriter, req *rest.Request) {
-	r.manager.Exit()
+	// Shutdown (not bare Exit()) so an API-triggered exit also cancels the
+	// root context and kills in-flight rsync children — same disposable
+	// behaviour as SIGTERM (12-factor IX).
+	if err := w.WriteJson(map[string]string{"status": "exiting"}); err != nil {
+		log.Error(err)
+	}
+	go r.manager.Shutdown()
+}
+
+// getRepoStatus returns the live status of a single repo, including the
+// stdout/stderr ring buffer the operator inspects while a sync runs.
+func (r *RestfulAPI) getRepoStatus(w rest.ResponseWriter, req *rest.Request) {
+	name := req.PathParam("name")
+	status, ok := r.manager.GetRepoStatus(name)
+	if !ok {
+		rest.NotFound(w, req)
+		return
+	}
+	if err := w.WriteJson(status); err != nil {
+		log.Error(err)
+	}
+}
+
+// triggerRepoSync schedules a one-off sync for one repo. It only enqueues
+// the sync (TriggerSync on the live worker); the daemon's scheduler runs
+// it under the same concurrency cap as a normal poll.
+func (r *RestfulAPI) triggerRepoSync(w rest.ResponseWriter, req *rest.Request) {
+	name := req.PathParam("name")
+	if r.manager.TriggerRepoByName(name) {
+		if err := w.WriteJson(map[string]string{"status": "triggered", "repo": name}); err != nil {
+			log.Error(err)
+		}
+		return
+	}
+	rest.NotFound(w, req)
 }
