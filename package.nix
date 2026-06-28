@@ -1,13 +1,14 @@
-{
-  buildGoApplication,
-}:
+{ goEnv }:
 
-buildGoApplication {
+goEnv.buildGoApplicationExperimental {
   pname = "lug";
   version = "0.1.0";
-  pwd = ./.;
   src = ./.;
-  modules = ./gomod2nix.toml;
+  goLock = ./go2nix.toml;
+  subPackages = [
+    "./cli/lug"
+    "./cli/lugctl"
+  ];
 
   meta.mainProgram = "lug";
 }

@@ -8,10 +8,9 @@
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
     flake-utils.url = "github:numtide/flake-utils";
-    gomod2nix = {
-      url = "github:nix-community/gomod2nix";
+    go2nix = {
+      url = "github:numtide/go2nix";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
     };
     flake-compat = {
       url = "github:NixOS/flake-compat";
@@ -61,12 +60,20 @@
               );
             in
             lib.removePrefix "go " goLine;
+
+          # go2nix experimental mode (no plugin):
+          #   extra-experimental-features = recursive-nix ca-derivations dynamic-derivations
+          goEnv = inputs.go2nix.lib.mkGoEnv {
+            go = pkgs.go;
+            go2nix = inputs.go2nix.packages.${system}.go2nix;
+            inherit (pkgs) callPackage;
+            nixPackage = pkgs.nix;
+          };
         in
         {
           _module.args.pkgs = import inputs.nixpkgs {
             inherit system;
             overlays = [
-              inputs.gomod2nix.overlays.default
               (_final: prev: {
                 go = prev."go_${lib.versions.major goVersion}_${lib.versions.minor goVersion}";
               })
@@ -78,6 +85,7 @@
             settings.global.excludes = [ ];
 
             programs = {
+              gofumpt.enable = true;
               goimports.enable = true;
               nixfmt.enable = true;
             };
@@ -89,60 +97,28 @@
           pre-commit.settings.configPath = ".pre-commit-config.flake.yaml";
           pre-commit.settings.hooks = {
             treefmt.enable = true;
-
-            golangci-lint = {
+            go2nix = {
               enable = true;
-              name = "golangci-lint";
-              description = "Run golangci-lint on Go files";
+              name = "go2nix";
+              description = "Regenerate go2nix.toml lockfile";
               entry =
                 let
-                  script = pkgs.writeShellScript "golangci-lint-wrapper" ''
-                    # Skip in Nix build sandbox (nix flake check) — no network access to download Go modules
-                    if [ -n "''${NIX_BUILD_TOP:-}" ]; then
-                      echo "golangci-lint: skipping (Nix sandbox, no network)"
-                      exit 0
-                    fi
-                    export PATH="${pkgs.go}/bin:$PATH"
-                    # golangci-lint can only process one Go package per invocation;
-                    # group files by directory and run per-directory.
-                    dirs=$(printf "%s\n" "$@" | xargs -n1 dirname | sort -u)
-                    for dir in $dirs; do
-                      ${pkgs.golangci-lint}/bin/golangci-lint run --fix "./$dir"
-                    done
+                  script = pkgs.writeShellScript "go2nix-wrapper" ''
+                    exec ${lib.getExe inputs.go2nix.packages.${system}.go2nix} generate .
                   '';
                 in
                 toString script;
-              files = "\\.go$";
-              excludes = [ "vendor/" ];
-              pass_filenames = true;
-            };
-
-            gomod2nix = {
-              enable = true;
-              name = "gomod2nix";
-              description = "Regenerate gomod2nix.toml";
-              entry =
-                let
-                  script = pkgs.writeShellScript "gomod2nix-wrapper" ''
-                    # Skip in Nix build sandbox (nix flake check) — no network access
-                    if [ -n "''${NIX_BUILD_TOP:-}" ]; then
-                      echo "gomod2nix: skipping (Nix sandbox, no network)"
-                      exit 0
-                    fi
-                    exec ${lib.getExe' pkgs.gomod2nix "gomod2nix"} generate
-                  '';
-                in
-                toString script;
-              files = "(go\\.(mod|sum)|gomod2nix\\.toml)$";
+              files = "go\\.(mod|sum)$";
               pass_filenames = false;
             };
           };
 
-          packages.default = pkgs.callPackage ./package.nix {
-            inherit (inputs.gomod2nix.legacyPackages.${system}) buildGoApplication;
+          packages.default = config.packages.lug;
+          packages.lug = pkgs.callPackage ./package.nix {
+            inherit goEnv;
           };
           packages.docker-image = pkgs.callPackage ./docker.nix {
-            lug = config.packages.default;
+            inherit (config.packages) lug;
             inherit (inputs.nix2container.packages.${system}) nix2container;
           };
 
@@ -157,15 +133,15 @@
             '';
 
             packages = with pkgs; [
-              (mkGoEnv { pwd = ./.; })
+              go
               gopls
-              gomod2nix
               gotools
               go-mod-upgrade
               govulncheck
               go-junit-report
               go-task
               delve
+              inputs.go2nix.packages.${system}.go2nix
             ];
           };
         };

@@ -75,7 +75,7 @@ nix2container.buildImage {
     # forwarding for graceful shutdown (Phase 1) lands on the daemon itself,
     # and `podman run lug:latest <args>` appends args to the binary. With
     # `lug` on PATH below it is also discoverable from a shell / `podman exec`.
-    Entrypoint = [ "${lib.getExe lug}" ];
+    Entrypoint = [ "${lug}/bin/lug" ];
     Cmd = [
       "-c"
       configPath
