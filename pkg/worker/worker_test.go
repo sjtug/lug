@@ -2,18 +2,17 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-
-	"errors"
-	"sync/atomic"
 
 	"github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/pkg/config"
@@ -55,7 +54,6 @@ func TestNewShellScriptWorker(t *testing.T) {
 	asrt.Equal("shell_script", w.GetConfig()["type"])
 	asrt.Equal("shell", w.GetConfig()["name"])
 	asrt.Equal("script", w.GetConfig()["script"])
-
 }
 
 func TestShellScriptWorkerEnvVarsConvert(t *testing.T) {
@@ -149,6 +147,7 @@ func newLimitReader(limit int) *limitReader {
 		limit: limit,
 	}
 }
+
 func (i *limitReader) Read(p []byte) (int, error) {
 	if i.cnt > i.limit {
 		return 0, io.EOF

@@ -112,7 +112,8 @@ func (e *Exporter) UpdateDiskUsage(worker string, path string) {
 		// first, we set it to infinity (2037-01-01)
 		// Note that we cannot use a larger value due to Y2038 problem on *nix
 		e.diskUsageLastUpdateTime[worker] = time.Date(
-			2037, 1, 1, 0, 0, 0, 0, time.Local)
+			2037, 1, 1, 0, 0, 0, 0, time.Local,
+		)
 		// then, we perform the operation in background
 		go func() {
 			size, err := helper.DiskUsage(path)
@@ -125,7 +126,8 @@ func (e *Exporter) UpdateDiskUsage(worker string, path string) {
 			// when it finishes, we set it to actual finishing time
 			e.diskUsageLastUpdateTime[worker] = time.Now()
 			logger.WithField(
-				"event", "update_disk_usage_complete").WithField("size", size).Info("Disk usage updated")
+				"event", "update_disk_usage_complete",
+			).WithField("size", size).Info("Disk usage updated")
 		}()
 	}
 }

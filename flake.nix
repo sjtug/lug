@@ -135,7 +135,7 @@
             packages = with pkgs; [
               go
               gopls
-              gotools
+              go-tools
               go-mod-upgrade
               govulncheck
               go-junit-report

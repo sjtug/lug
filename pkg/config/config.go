@@ -88,7 +88,7 @@ func (c *Config) Parse(in io.Reader) (err error) {
 				continue
 			}
 			kind := t.Kind()
-			var invalidKinds = map[reflect.Kind]bool{
+			invalidKinds := map[reflect.Kind]bool{
 				reflect.Array:     true,
 				reflect.Map:       true,
 				reflect.Slice:     true,

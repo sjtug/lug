@@ -51,7 +51,8 @@ func NewWorker(cfg config.RepoConfig, lastFinished time.Time, Result bool) (Work
 					Stderr:       make([]string, 0),
 				},
 				cfg,
-				make(chan int, 1))
+				make(chan int, 1),
+			)
 			if err != nil {
 				return nil, err
 			}

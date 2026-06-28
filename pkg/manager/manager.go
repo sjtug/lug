@@ -209,7 +209,7 @@ func (m *Manager) checkpoint() error {
 		return err
 	}
 	ckpt := fmt.Sprintf("%s.tmp", m.config.Checkpoint)
-	err = os.WriteFile(ckpt, file, 0644)
+	err = os.WriteFile(ckpt, file, 0o644)
 	if err != nil {
 		return err
 	}

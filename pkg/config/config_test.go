@@ -85,7 +85,7 @@ repos:
 }
 
 func TestWrongManagerConfig(t *testing.T) {
-	var testStr = `interval: -1
+	testStr := `interval: -1
 loglevel: 5 # 1 - 5
 repos:
 - type: shell_script

@@ -40,7 +40,8 @@ type executorInvokeWorker struct {
 // management
 func NewExecutorInvokeWorker(exector executor, status Status,
 	cfg config.RepoConfig,
-	signal chan int) (*executorInvokeWorker, error) {
+	signal chan int,
+) (*executorInvokeWorker, error) {
 	name, ok := cfg["name"].(string)
 	if !ok {
 		return nil, errors.New("no name in config")
@@ -147,15 +148,18 @@ func (w *executorInvokeWorker) RunSync() {
 		var err error
 		for retry_cnt := 1; retry_cnt <= retry_limit; retry_cnt++ {
 			logger.WithField("event", "invoke_executor").WithField(
-				"try_cnt", retry_cnt).Debugf("Invoke executor for the %v time", retry_cnt)
+				"try_cnt", retry_cnt,
+			).Debugf("Invoke executor for the %v time", retry_cnt)
 			utilities := []utility{newRlimit(w)}
 			result, err = w.executor.RunOnce(w.ctx, logger, utilities)
 			if err == nil {
 				break
 			}
 			logger.WithField("event", "invoke_executor_fail").WithField(
-				"try_cnt", retry_cnt).Infof(
-				"Failed on the %v-th executor. Error: %v", retry_cnt, err.Error())
+				"try_cnt", retry_cnt,
+			).Infof(
+				"Failed on the %v-th executor. Error: %v", retry_cnt, err.Error(),
+			)
 			logger.Debug("Stderr: ", result.Stderr)
 			// Abort retry sleep on shutdown rather than blocking a full interval.
 			select {
