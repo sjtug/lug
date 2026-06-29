@@ -64,10 +64,9 @@
           # go2nix experimental mode (no plugin):
           #   extra-experimental-features = recursive-nix ca-derivations dynamic-derivations
           goEnv = inputs.go2nix.lib.mkGoEnv {
-            go = pkgs.go;
-            go2nix = inputs.go2nix.packages.${system}.go2nix;
-            inherit (pkgs) callPackage;
-            nixPackage = pkgs.nix;
+            inherit (pkgs) go callPackage;
+            inherit (inputs.go2nix.packages.${system}) go2nix;
+            nixPackage = pkgs.nixVersions.nix_2_34; # Nix >= 2.34 is required
           };
         in
         {
