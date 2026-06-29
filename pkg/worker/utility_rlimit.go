@@ -2,14 +2,14 @@ package worker
 
 import (
 	"fmt"
-	"syscall"
+	"os"
+	"os/exec"
 
 	"github.com/dustin/go-humanize"
 )
 
 type rlimit struct {
-	oldRlimit syscall.Rlimit
-	w         Worker
+	w Worker
 }
 
 func newRlimit(w Worker) *rlimit {
@@ -24,30 +24,37 @@ func (re rlimitError) Error() string {
 	return string(re)
 }
 
-func (r *rlimit) preHook() error {
+func (r *rlimit) apply(cmd *exec.Cmd) error {
 	cfg := r.w.GetConfig()
-	if err := syscall.Getrlimit(syscall.RLIMIT_AS, &r.oldRlimit); err != nil {
-		return rlimitError(fmt.Sprint("Failed to getrlimit:", err))
+	rlimitMem, ok := cfg["rlimit_mem"]
+	if !ok {
+		return nil
 	}
-	if rlimitMem, ok := cfg["rlimit_mem"]; ok {
-		if bytes, err := humanize.ParseBytes(rlimitMem.(string)); err == nil {
-			rlimitNew := r.oldRlimit
-			rlimitNew.Cur = bytes
-			err := syscall.Setrlimit(syscall.RLIMIT_AS, &rlimitNew)
-			if err != nil {
-				return rlimitError(fmt.Sprint("Failed to setrlimit:", err))
-			}
-		} else {
-			return rlimitError(fmt.Sprint("Invalid rlimit_mem: must be size:", err))
-		}
+	rlimitMemStr, ok := rlimitMem.(string)
+	if !ok || rlimitMemStr == "" {
+		return rlimitError("Invalid rlimit_mem: must be a non-empty size string")
 	}
+	if _, err := humanize.ParseBytes(rlimitMemStr); err != nil {
+		return rlimitError(fmt.Sprint("Invalid rlimit_mem: must be size:", err))
+	}
+	helper, err := rlimitHelperPath()
+	if err != nil {
+		return rlimitError(fmt.Sprint("Failed to locate rlimit helper:", err))
+	}
+
+	// Wrap the command with Lug's hidden rlimit helper. The helper sets
+	// RLIMIT_AS on itself and then syscall.Exec's the real command, so the
+	// memory limit applies to the sync process (and its descendants) rather
+	// than to the long-running Lug daemon.
+	originalArgs := append([]string(nil), cmd.Args...)
+	cmd.Path = helper
+	cmd.Args = append([]string{helper, "__run-with-rlimit", rlimitMemStr, "--"}, originalArgs...)
 	return nil
 }
 
-func (r *rlimit) postHook() error {
-	err := syscall.Setrlimit(syscall.RLIMIT_AS, &r.oldRlimit)
-	if err != nil {
-		return rlimitError(fmt.Sprint("Failed to restore rlimit:", err))
+func rlimitHelperPath() (string, error) {
+	if helper := os.Getenv("LUG_RLIMIT_HELPER"); helper != "" {
+		return helper, nil
 	}
-	return nil
+	return os.Executable()
 }

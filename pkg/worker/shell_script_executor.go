@@ -98,9 +98,9 @@ func (w *shellScriptExecutor) RunOnce(ctx context.Context, logger *logrus.Entry,
 	cmd.Env = env
 
 	for _, utility := range utilities {
-		logger.WithField("event", "exec_prehook").Debug("Executing prehook of ", utility)
-		if err := utility.preHook(); err != nil {
-			logger.Error("Failed to execute preHook:", err)
+		logger.WithField("event", "exec_utility_apply").Debug("Applying utility ", utility)
+		if err := utility.apply(cmd); err != nil {
+			return execResult{"", ""}, fmt.Errorf("failed to apply exec utility: %w", err)
 		}
 	}
 
@@ -109,13 +109,6 @@ func (w *shellScriptExecutor) RunOnce(ctx context.Context, logger *logrus.Entry,
 	cmd.Stderr = &bufErr
 
 	err = cmd.Start()
-
-	for _, utility := range utilities {
-		logger.WithField("event", "exec_posthook").Debug("Executing postHook of ", utility)
-		if err := utility.postHook(); err != nil {
-			logger.Error("Failed to execute postHook:", err)
-		}
-	}
 	if err != nil {
 		return execResult{"", ""}, errors.New("execution cannot start")
 	}

@@ -3,7 +3,6 @@ module github.com/sjtug/lug
 go 1.25.0
 
 require (
-	github.com/ant0ine/go-json-rest v3.3.2+incompatible
 	github.com/cheshir/logrustash v0.0.0-20230213210745-aca6961b250d
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dustin/go-humanize v1.0.1

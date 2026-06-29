@@ -1,6 +1,7 @@
 package worker
 
+import "os/exec"
+
 type utility interface {
-	preHook() error
-	postHook() error
+	apply(*exec.Cmd) error
 }

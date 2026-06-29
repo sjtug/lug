@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"errors"
-	"io"
 	"os/exec"
 	"strings"
 	"sync/atomic"
@@ -136,31 +135,9 @@ func TestExecutorInvokeWorker(t *testing.T) {
 	asrt.Equal(2, int(atomic.LoadInt32(&d.RunCnt)))
 }
 
-type limitReader struct {
-	cnt   int
-	limit int
-}
-
-func newLimitReader(limit int) *limitReader {
-	return &limitReader{
-		cnt:   0,
-		limit: limit,
-	}
-}
-
-func (i *limitReader) Read(p []byte) (int, error) {
-	if i.cnt > i.limit {
-		return 0, io.EOF
-	}
-	i.cnt += len(p)
-	for i := 0; i < len(p); i++ {
-		p[i] = 5 // shouldn't use zero here, because sometimes pages filled with zero are not allocated
-	}
-	return len(p), nil
-}
-
-func TestUtilityRlimit(t *testing.T) {
+func TestUtilityRlimitWrapsCommand(t *testing.T) {
 	asrt := assert.New(t)
+	t.Setenv("LUG_RLIMIT_HELPER", "/bin/lug-rlimit-helper")
 	external_worker, ok := NewExternalWorker(config.RepoConfig{
 		"name":       "test_worker",
 		"rlimit_mem": "10M",
@@ -169,16 +146,10 @@ func TestUtilityRlimit(t *testing.T) {
 
 	rlimitUtility := newRlimit(external_worker)
 
-	cmd := exec.Command("rev")
-	cmd.Stdin = newLimitReader(20000000) // > 10M = 10485760
-	asrt.NoError(rlimitUtility.preHook())
-	err1 := cmd.Start()
-	asrt.NoError(rlimitUtility.postHook())
-	var err2 error
-	if err1 == nil {
-		err2 = cmd.Wait()
-	}
-	asrt.True(err1 != nil || err2 != nil)
+	cmd := exec.Command("rev", "arg")
+	asrt.NoError(rlimitUtility.apply(cmd))
+	asrt.Equal("/bin/lug-rlimit-helper", cmd.Path)
+	asrt.Equal([]string{"/bin/lug-rlimit-helper", "__run-with-rlimit", "10M", "--", "rev", "arg"}, cmd.Args)
 }
 
 func TestShellScriptWorkerArgParse(t *testing.T) {
