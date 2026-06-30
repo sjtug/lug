@@ -1,10 +1,24 @@
-{ goEnv }:
+{
+  lib,
+  globset,
+  goEnv,
+  symlinkJoin,
+}:
 
 let
+  version = "0.1.0";
   goAppDrv = goEnv.buildGoApplicationExperimental {
     pname = "lug";
-    version = "0.1.0";
-    src = ./.;
+    inherit version;
+    src = lib.fileset.toSource {
+      root = ./.;
+      fileset = globset.lib.globs ./. [
+        "**/*.go"
+        "**/*.tar"
+        "go.mod"
+        "go.sum"
+      ];
+    };
     goLock = ./go2nix.toml;
     subPackages = [
       "./cli/lug"
@@ -14,4 +28,7 @@ let
     meta.mainProgram = "lug";
   };
 in
-goAppDrv.target
+symlinkJoin {
+  name = "lug-${version}";
+  paths = [ goAppDrv.target ];
+}
