@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/cheshir/logrustash"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/dustin/go-humanize"
 	log "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
@@ -112,7 +111,15 @@ func loadConfigFromFlags() config.Config {
 
 	prepareLogger(cfg.LogLevel, cfg.LogStashConfig.Address, cfg.LogStashConfig.AdditionalFields)
 	log.Info("Starting...")
-	log.Debugln(spew.Sdump(cfg))
+	log.WithFields(log.Fields{
+		"interval":         cfg.Interval,
+		"loglevel":         cfg.LogLevel,
+		"concurrent_limit": cfg.ConcurrentLimit,
+		"exporter_addr":    cfg.ExporterAddr,
+		"json_api_addr":    cfg.JsonAPIConfig.Address,
+		"checkpoint":       cfg.Checkpoint,
+		"num_repos":        len(cfg.Repos),
+	}).Debug("config loaded")
 	if err != nil {
 		panic(err)
 	}

@@ -9,7 +9,6 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -97,7 +96,7 @@ func (c *Config) Parse(in io.Reader) (err error) {
 			}
 			if _, ok := invalidKinds[kind]; ok {
 				removeKeys = append(removeKeys, k)
-				_, err := fmt.Fprintln(os.Stderr, "nested property(e.g. arrays/maps) in Repos ignored: "+spew.Sdump(v))
+				_, err := fmt.Fprintln(os.Stderr, "nested property(e.g. arrays/maps) in Repos ignored: "+fmt.Sprintf("%v", v))
 				if err != nil {
 					return err
 				}

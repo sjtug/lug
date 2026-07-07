@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/pkg/config"
 	"mvdan.cc/sh/v3/shell"
@@ -40,7 +39,7 @@ func convertMapToEnvVars(m map[string]interface{}) (map[string]string, error) {
 		case int, uint, float32, float64, string:
 			result["LUG_"+k] = fmt.Sprint(v)
 		default:
-			return nil, errors.New("invalid type:" + spew.Sdump(v))
+			return nil, errors.New("invalid type in repo config: " + fmt.Sprintf("%v", v))
 		}
 	}
 	marshal, err := json.Marshal(m)
@@ -82,7 +81,7 @@ func (w *shellScriptExecutor) RunOnce(ctx context.Context, logger *logrus.Entry,
 		return execResult{"", ""}, errors.New("empty command")
 	}
 
-	logger.Debug("Invoking command:", fields[0], "with args:", fields[1:])
+	logger.Debugf("Invoking command: %s with args: %v", fields[0], fields[1:])
 	cmd := exec.CommandContext(ctx, fields[0], fields[1:]...)
 
 	// Forwarding config items to shell script as environmental variables

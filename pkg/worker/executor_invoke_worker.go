@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	log "github.com/sirupsen/logrus"
 	"github.com/sjtug/lug/pkg/config"
 	"github.com/sjtug/lug/pkg/exporter"
@@ -76,7 +75,14 @@ func NewExecutorInvokeWorker(exector executor, status Status,
 			return nil, errors.New("retry_interval should be an integer when present")
 		}
 	}
-	w.logger.Info(spew.Sprint(w))
+	w.logger.WithFields(log.Fields{
+		"name":           name,
+		"type":           cfg["type"],
+		"retry":          w.retry,
+		"retry_interval": w.retry_interval,
+		"idle":           w.idle,
+		"last_finished":  w.lastFinished,
+	}).Info("worker created")
 	return w, nil
 }
 

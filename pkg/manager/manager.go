@@ -9,8 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
-
 	"github.com/sirupsen/logrus"
 
 	"github.com/sjtug/lug/pkg/config"
@@ -240,10 +238,10 @@ func (m *Manager) launchWorkerFromPendingQueue(max_allowed int) {
 		new_idx = max_allowed
 	}
 	m.logger.WithFields(logrus.Fields{
-		"event":         "launch_worker_from_pending_queue",
-		"max_allowed":   max_allowed,
-		"new_idx":       new_idx,
-		"pending_queue": spew.Sprint(m.pendingQueue),
+		"event":       "launch_worker_from_pending_queue",
+		"max_allowed": max_allowed,
+		"new_idx":     new_idx,
+		"queue_len":   len(m.pendingQueue),
 	}).Debug("launch worker from pending queue")
 	to_launch := m.pendingQueue[:new_idx]
 	m.pendingQueue = m.pendingQueue[new_idx:]
@@ -268,7 +266,7 @@ func (m *Manager) Run() {
 		m.logger.WithFields(logrus.Fields{
 			"event":         "call_runsync",
 			"target_worker": w.GetConfig()["name"],
-		}).Debugf("Calling RunSync() to w %s", w.GetConfig()["name"])
+		}).Debugf("Calling RunSync() on worker %s", w.GetConfig()["name"])
 		go w.RunSync()
 	}
 	err := m.checkpoint()
