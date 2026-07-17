@@ -22,7 +22,6 @@ let
     goLock = ./go2nix.toml;
     subPackages = [
       "./cli/lug"
-      "./cli/lugctl"
     ];
 
     meta.mainProgram = "lug";

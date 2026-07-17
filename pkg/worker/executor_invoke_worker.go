@@ -87,11 +87,7 @@ func NewExecutorInvokeWorker(exector executor, status Status,
 }
 
 func (eiw *executorInvokeWorker) TriggerSync() {
-	select {
-	case eiw.signal <- 1:
-	default:
-		eiw.logger.WithField("event", "trigger_dropped").Debug("sync trigger already pending")
-	}
+	eiw.signal <- 1
 }
 
 // SetContext installs the shutdown context. The manager sets this to a

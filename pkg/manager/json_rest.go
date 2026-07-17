@@ -105,8 +105,7 @@ func (r *RestfulAPI) stopManager(w http.ResponseWriter, _ *http.Request) {
 func (r *RestfulAPI) exitManager(w http.ResponseWriter, _ *http.Request) {
 	// Shutdown (not bare Exit()) so an API-triggered exit also cancels the
 	// root context and kills in-flight rsync children — same disposable
-	// behaviour as SIGTERM (12-factor IX). Run it asynchronously after the
-	// acknowledgement so lugctl receives a clean response before the daemon exits.
+	// behaviour as SIGTERM (12-factor IX).
 	writeJSON(w, http.StatusOK, map[string]string{"status": "exiting"})
 	go func() {
 		time.Sleep(50 * time.Millisecond)

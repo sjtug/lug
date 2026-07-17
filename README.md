@@ -53,7 +53,7 @@ The admin endpoints are intended for the internal Compose network; do not expose
 The below configuration may be outdated. Refer to [config.example.yaml](https://github.com/sjtug/lug/blob/master/config.example.yaml)
 and [Wiki](https://github.com/sjtug/lug/wiki/Configuration) for the latest version.
 
-```
+```yaml
 interval: 3 # Interval between pollings
 loglevel: 5 # 0-5. 0 for ERROR and 5 for DEBUG
 logstashaddr: "172.0.0.4:6000" # TCP Address of logstash. empty means no logstash support
