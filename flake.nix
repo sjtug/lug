@@ -83,6 +83,14 @@
             commitizen.enable = true;
             golangci-lint.enable = true;
             treefmt.enable = true;
+            gomod2nix = {
+              enable = true;
+              name = "Check if gomod2nix.toml is up-to-date";
+              entry = "${pkgs.gomod2nix}/bin/gomod2nix generate";
+              files = "(gomod2nix\\.toml|go\\.(mod|sum))$";
+              pass_filenames = false;
+              stages = [ "pre-commit" ];
+            };
           };
 
           packages.default = pkgs.callPackage ./package.nix {
