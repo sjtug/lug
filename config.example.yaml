@@ -19,6 +19,10 @@ repos:
       script: rsync -av rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/ /tmp/putty
       name: putty
       interval: 600
+      # Optional per-job resource controls (enforced via cgroup v2 when a
+      # delegated subtree is available; ignored gracefully otherwise):
+      # rlimit_mem: 1G # cgroup memory.max for the job; the whole job tree is OOM-killed above it
+      # timeout: 7200 # wall-clock budget in seconds; the job tree is killed on expiry
     - type: shell_script
       script: bash -c 'printenv | grep ^LUG'
       name: printenv

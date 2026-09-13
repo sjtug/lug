@@ -1,8 +1,7 @@
 package worker
 
 import (
-	"io"
-	"os/exec"
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -100,9 +99,9 @@ type dummyExecutor struct {
 	RunCnt int32
 }
 
-func (d *dummyExecutor) RunOnce(logger *logrus.Entry, utilities []utility) (execResult, error) {
+func (d *dummyExecutor) RunOnce(ctx context.Context, logger *logrus.Entry) (execResult, error) {
 	atomic.AddInt32(&d.RunCnt, 1)
-	return execResult{"", ""}, errors.New("dummy error")
+	return execResult{}, errors.New("dummy error")
 }
 
 func TestExecutorInvokeWorker(t *testing.T) {
@@ -137,48 +136,82 @@ func TestExecutorInvokeWorker(t *testing.T) {
 	asrt.Equal(2, int(atomic.LoadInt32(&d.RunCnt)))
 }
 
-type limitReader struct {
-	cnt   int
-	limit int
-}
-
-func newLimitReader(limit int) *limitReader {
-	return &limitReader{
-		cnt:   0,
-		limit: limit,
-	}
-}
-func (i *limitReader) Read(p []byte) (int, error) {
-	if i.cnt > i.limit {
-		return 0, io.EOF
-	}
-	i.cnt += len(p)
-	for i := 0; i < len(p); i++ {
-		p[i] = 5 // shouldn't use zero here, because sometimes pages filled with zero are not allocated
-	}
-	return len(p), nil
-}
-
-func TestUtilityRlimit(t *testing.T) {
+func TestShellScriptExecutorTimeout(t *testing.T) {
 	asrt := assert.New(t)
-	external_worker, ok := NewExternalWorker(config.RepoConfig{
-		"name":       "test_worker",
-		"rlimit_mem": "10M",
+	e, err := newShellScriptExecutor(config.RepoConfig{
+		"name":    "timeout_test",
+		"script":  "sleep 30",
+		"timeout": 1,
 	})
-	asrt.Nil(ok)
+	asrt.Nil(err)
+	start := time.Now()
+	result, err := e.RunOnce(context.Background(), logrus.WithField("repo", "timeout_test"))
+	asrt.NotNil(err)
+	asrt.Contains(err.Error(), "timeout")
+	asrt.Less(time.Since(start), 10*time.Second)
+	asrt.Greater(result.Duration, time.Duration(0))
+}
 
-	rlimitUtility := newRlimit(external_worker)
+func TestShellScriptExecutorCancel(t *testing.T) {
+	asrt := assert.New(t)
+	e, err := newShellScriptExecutor(config.RepoConfig{
+		"name":   "cancel_test",
+		"script": "sleep 30",
+	})
+	asrt.Nil(err)
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		cancel()
+	}()
+	start := time.Now()
+	_, err = e.RunOnce(ctx, logrus.WithField("repo", "cancel_test"))
+	asrt.NotNil(err)
+	asrt.Less(time.Since(start), 10*time.Second)
+}
 
-	cmd := exec.Command("rev")
-	cmd.Stdin = newLimitReader(20000000) // > 10M = 10485760
-	asrt.NoError(rlimitUtility.preHook())
-	err1 := cmd.Start()
-	asrt.NoError(rlimitUtility.postHook())
-	var err2 error
-	if err1 == nil {
-		err2 = cmd.Wait()
-	}
-	asrt.True(err1 != nil || err2 != nil)
+func TestShellScriptExecutorTelemetry(t *testing.T) {
+	asrt := assert.New(t)
+	e, err := newShellScriptExecutor(config.RepoConfig{
+		"name":   "telemetry_test",
+		"script": "true",
+	})
+	asrt.Nil(err)
+	result, err := e.RunOnce(context.Background(), logrus.WithField("repo", "telemetry_test"))
+	asrt.Nil(err)
+	asrt.Greater(result.Duration, time.Duration(0))
+	// PeakMemBytes > 0 only when cgroup v2 delegation is available; do not assert.
+}
+
+func TestTelemetryObserve(t *testing.T) {
+	asrt := assert.New(t)
+	var tel Telemetry
+	tel.Observe(10*time.Second, 1000, false)
+	asrt.Equal(10*time.Second, tel.DurationEWMA)
+	asrt.Equal(uint64(1000), tel.PeakMemEWMA)
+	tel.Observe(20*time.Second, 2000, true)
+	asrt.Equal(uint64(1), tel.OOMKills)
+	asrt.Equal(uint64(2), tel.Runs)
+	// EWMA moves toward the new sample but not all the way
+	asrt.Greater(tel.DurationEWMA, 10*time.Second)
+	asrt.Less(tel.DurationEWMA, 20*time.Second)
+	asrt.Greater(tel.PeakMemEWMA, uint64(1000))
+	asrt.Less(tel.PeakMemEWMA, uint64(2000))
+	// Zero samples must not disturb the EWMAs
+	prev := tel
+	tel.Observe(0, 0, false)
+	asrt.Equal(prev.DurationEWMA, tel.DurationEWMA)
+	asrt.Equal(prev.PeakMemEWMA, tel.PeakMemEWMA)
+}
+
+func TestRlimitMemRejected(t *testing.T) {
+	asrt := assert.New(t)
+	_, err := newShellScriptExecutor(config.RepoConfig{
+		"name":       "bad_rlimit",
+		"script":     "true",
+		"rlimit_mem": "not-a-size",
+	})
+	asrt.NotNil(err)
 }
 
 func TestShellScriptWorkerArgParse(t *testing.T) {

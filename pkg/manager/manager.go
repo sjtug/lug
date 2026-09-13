@@ -55,6 +55,9 @@ type WorkerCheckPoint struct {
 	LastInvokeTime time.Time  `json:"last_invoke_time"`
 	LastFinished   *time.Time `json:"last_finished,omitempty"`
 	Result         *bool      `json:"result,omitempty"`
+	// Telemetry persists learned resource usage (peak mem / duration EWMAs)
+	// across restarts. Additive; absent in v1 checkpoints.
+	Telemetry *worker.Telemetry `json:"telemetry,omitempty"`
 }
 
 type CheckPoint struct {
@@ -101,7 +104,11 @@ func workerFromCheckpoint(repoConfig config.RepoConfig, checkpoint *CheckPoint, 
 	if info.LastFinished != nil {
 		lastFinished = *info.LastFinished
 	}
-	return worker.NewWorker(repoConfig, lastFinished, result)
+	telemetry := worker.Telemetry{}
+	if info.Telemetry != nil {
+		telemetry = *info.Telemetry
+	}
+	return worker.NewWorkerWithTelemetry(repoConfig, lastFinished, result, telemetry)
 }
 
 // NewManager creates a new manager with attached workers from config
@@ -143,6 +150,10 @@ func NewManager(config *config.Config) (*Manager, error) {
 }
 
 func (m *Manager) checkpoint() error {
+	if m.config.Checkpoint == "" {
+		// checkpointing disabled (e.g. tests); learned telemetry only lives in memory
+		return nil
+	}
 	ckptObj := &CheckPoint{WorkerInfo: make(map[string]WorkerCheckPoint)}
 	for _, w := range m.workers {
 		name := w.GetConfig()["name"].(string)
@@ -152,10 +163,12 @@ func (m *Manager) checkpoint() error {
 			lastInvokeTime = time.Now().AddDate(-1, 0, 0)
 		}
 
+		telemetry := status.Telemetry
 		ckptObj.WorkerInfo[name] = WorkerCheckPoint{
 			LastInvokeTime: lastInvokeTime,
 			Result:         &status.Result,
 			LastFinished:   &status.LastFinished,
+			Telemetry:      &telemetry,
 		}
 	}
 

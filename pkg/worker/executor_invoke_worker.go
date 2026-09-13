@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -21,13 +22,17 @@ type executorInvokeWorker struct {
 	retry          int
 	retry_interval time.Duration
 	lastFinished   time.Time
+	telemetry      Telemetry
 	stdout         *helper.MaxLengthStringSliceAdaptor
 	stderr         *helper.MaxLengthStringSliceAdaptor
 	cfg            config.RepoConfig
 	name           string
 	signal         chan int
-	logger         *log.Entry
-	rwmutex        sync.RWMutex
+	// cancelMu guards cancelRun, which aborts the in-flight sync (if any).
+	cancelMu  sync.Mutex
+	cancelRun context.CancelFunc
+	logger    *log.Entry
+	rwmutex   sync.RWMutex
 }
 
 // creates a new executorInvokeWorker, which encapsules an executor
@@ -46,6 +51,7 @@ func NewExecutorInvokeWorker(exector executor, status Status,
 		retry:          3,
 		retry_interval: 3 * time.Second,
 		lastFinished:   status.LastFinished,
+		telemetry:      status.Telemetry,
 		stdout:         helper.NewMaxLengthSlice(status.Stdout, 20),
 		stderr:         helper.NewMaxLengthSlice(status.Stderr, 20),
 		cfg:            cfg,
@@ -77,6 +83,17 @@ func (eiw *executorInvokeWorker) TriggerSync() {
 	eiw.signal <- 1
 }
 
+// AbortSync cancels the in-flight sync run, if any. The cancellation
+// propagates through the executor's context and (with cgroup isolation)
+// kills the entire job process tree.
+func (eiw *executorInvokeWorker) AbortSync() {
+	eiw.cancelMu.Lock()
+	defer eiw.cancelMu.Unlock()
+	if eiw.cancelRun != nil {
+		eiw.cancelRun()
+	}
+}
+
 func (eiw *executorInvokeWorker) GetStatus() Status {
 	eiw.rwmutex.RLock()
 	defer eiw.rwmutex.RUnlock()
@@ -84,6 +101,7 @@ func (eiw *executorInvokeWorker) GetStatus() Status {
 		Idle:         eiw.idle,
 		Result:       eiw.result,
 		LastFinished: eiw.lastFinished,
+		Telemetry:    eiw.telemetry,
 		Stdout:       eiw.stdout.GetAll(),
 		Stderr:       eiw.stderr.GetAll(),
 	}
@@ -108,7 +126,7 @@ func (w *executorInvokeWorker) RunSync() {
 		<-w.signal
 
 		// A new sync run begins: stamp a sync_id so every line of this run
-		// can be correlated in the event stream (see PLAN, Phase 0).
+		// can be correlated in the event stream.
 		syncID := shortID()
 		logger = w.logger.WithField("sync_id", syncID)
 		logger.WithField("event", "signal_received").Debug("finished waiting for signal")
@@ -117,6 +135,12 @@ func (w *executorInvokeWorker) RunSync() {
 			defer w.rwmutex.Unlock()
 			w.idle = false
 		}()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		w.cancelMu.Lock()
+		w.cancelRun = cancel
+		w.cancelMu.Unlock()
+
 		logger.WithField("event", "start_execution").Info("sync started")
 		retry_limit := w.retry
 		var result execResult
@@ -124,9 +148,9 @@ func (w *executorInvokeWorker) RunSync() {
 		for retry_cnt := 1; retry_cnt <= retry_limit; retry_cnt++ {
 			logger.WithField("event", "invoke_executor").WithField(
 				"try_cnt", retry_cnt).Debugf("Invoke executor for the %v time", retry_cnt)
-			utilities := []utility{newRlimit(w)}
-			result, err = w.executor.RunOnce(logger, utilities)
-			if err == nil {
+			result, err = w.executor.RunOnce(ctx, logger)
+			if err == nil || ctx.Err() != nil {
+				// success, or the whole run was aborted: retrying is pointless
 				break
 			}
 			logger.WithField("event", "invoke_executor_fail").WithField(
@@ -135,6 +159,12 @@ func (w *executorInvokeWorker) RunSync() {
 			logger.Debug("Stderr: ", result.Stderr)
 			time.Sleep(w.retry_interval)
 		}
+
+		w.cancelMu.Lock()
+		w.cancelRun = nil
+		w.cancelMu.Unlock()
+		cancel()
+
 		if err != nil {
 			logger.WithField("event", "execution_fail").Error(err.Error())
 			exporter.GetInstance().SyncFail(w.name)
@@ -142,12 +172,14 @@ func (w *executorInvokeWorker) RunSync() {
 				w.rwmutex.Lock()
 				defer w.rwmutex.Unlock()
 				w.result = false
+				w.telemetry.Observe(result.Duration, result.PeakMemBytes, result.OOMKilled)
 				w.stdout.Put(result.Stdout)
 				w.stderr.Put(result.Stderr)
 				logger.Infof("Stderr: %s", result.Stderr)
 				logger.Debugf("Stdout: %s", result.Stdout)
 				w.idle = true
 			}()
+			w.exportTelemetry()
 			logger.WithField("event", "execution_ended").Info("sync ended")
 			continue
 		}
@@ -163,9 +195,22 @@ func (w *executorInvokeWorker) RunSync() {
 			w.stdout.Put(result.Stdout)
 			w.result = true
 			w.lastFinished = time.Now()
+			w.telemetry.Observe(result.Duration, result.PeakMemBytes, result.OOMKilled)
 		}()
+		w.exportTelemetry()
 		logger.WithField("event", "execution_ended").Info("sync ended")
 	}
+}
+
+func (w *executorInvokeWorker) exportTelemetry() {
+	t := w.GetStatus().Telemetry
+	exporter.GetInstance().SyncTelemetry(w.name, exporter.TelemetrySample{
+		LastDuration:     t.LastDuration,
+		DurationEWMA:     t.DurationEWMA,
+		LastPeakMemBytes: t.LastPeakMem,
+		PeakMemEWMABytes: t.PeakMemEWMA,
+		OOMKills:         t.OOMKills,
+	})
 }
 
 // shortID generates a short unique ID without external dependencies.
