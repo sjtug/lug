@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 
 	"github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/sjtug/lug/pkg/config"
 )
 
@@ -102,6 +103,49 @@ type dummyExecutor struct {
 func (d *dummyExecutor) RunOnce(ctx context.Context, logger *logrus.Entry) (execResult, error) {
 	atomic.AddInt32(&d.RunCnt, 1)
 	return execResult{}, errors.New("dummy error")
+}
+
+type failOnceExecutor struct {
+	RunCnt int32
+}
+
+func (d *failOnceExecutor) RunOnce(ctx context.Context, logger *logrus.Entry) (execResult, error) {
+	if atomic.AddInt32(&d.RunCnt, 1) == 1 {
+		return execResult{}, errors.New("first attempt failed")
+	}
+	return execResult{}, nil
+}
+
+func TestExecutorInvokeWorkerLogsEveryAttemptStart(t *testing.T) {
+	asrt := assert.New(t)
+	d := &failOnceExecutor{}
+	cfg := config.RepoConfig{
+		"retry":          2,
+		"retry_interval": 0,
+		"name":           "retry-log-test",
+	}
+	control := make(chan int, 1)
+	w, err := NewExecutorInvokeWorker(d, Status{Idle: true}, cfg, control)
+	asrt.NoError(err)
+
+	logger, hook := logrustest.NewNullLogger()
+	w.logger = logger.WithField("repo", "retry-log-test")
+	go w.RunSync()
+	w.TriggerSync()
+
+	asrt.Eventually(func() bool {
+		return atomic.LoadInt32(&d.RunCnt) == 2 && w.GetStatus().Idle
+	}, time.Second, 10*time.Millisecond)
+
+	var attempts []int
+	for _, entry := range hook.AllEntries() {
+		if entry.Data["event"] == "start_execution" {
+			attempt, ok := entry.Data["try_cnt"].(int)
+			asrt.True(ok)
+			attempts = append(attempts, attempt)
+		}
+	}
+	asrt.Equal([]int{1, 2}, attempts)
 }
 
 func TestExecutorInvokeWorker(t *testing.T) {

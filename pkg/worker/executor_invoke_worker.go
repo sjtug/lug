@@ -145,11 +145,14 @@ func (w *executorInvokeWorker) RunSync() {
 		w.cancelRun = cancel
 		w.cancelMu.Unlock()
 
-		logger.WithField("event", "start_execution").Info("sync started")
 		retry_limit := w.retry
 		var result execResult
 		var err error
 		for retry_cnt := 1; retry_cnt <= retry_limit; retry_cnt++ {
+			logger.WithFields(log.Fields{
+				"event":   "start_execution",
+				"try_cnt": retry_cnt,
+			}).Info("sync attempt started")
 			logger.WithField("event", "invoke_executor").WithField(
 				"try_cnt", retry_cnt).Debugf("Invoke executor for the %v time", retry_cnt)
 			result, err = w.executor.RunOnce(ctx, logger)
