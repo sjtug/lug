@@ -29,6 +29,7 @@ func (r *RestfulAPI) GetAPIHandler() http.Handler {
 		rest.Get("/lug/v1/manager/summary", r.getManagerStatusSummary),
 		rest.Post("/lug/v1/admin/manager/start", r.startManager),
 		rest.Post("/lug/v1/admin/manager/stop", r.stopManager),
+		rest.Post("/lug/v1/admin/worker/:name/abort", r.abortWorker),
 		rest.Delete("/lug/v1/admin/manager", r.exitManager),
 	)
 	if err != nil {
@@ -95,4 +96,13 @@ func (r *RestfulAPI) stopManager(w rest.ResponseWriter, req *rest.Request) {
 
 func (r *RestfulAPI) exitManager(w rest.ResponseWriter, req *rest.Request) {
 	r.manager.Exit()
+}
+
+func (r *RestfulAPI) abortWorker(w rest.ResponseWriter, req *rest.Request) {
+	name := req.PathParam("name")
+	if err := r.manager.AbortWorker(name); err != nil {
+		rest.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
 }

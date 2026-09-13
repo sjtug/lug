@@ -366,6 +366,28 @@ func (m *Manager) Exit() {
 	m.expectChanVal(m.finishChan, ExitFinish)
 }
 
+// AbortWorker cancels the in-flight sync of the named worker, if any.
+// The cancellation propagates through the executor context and kills the
+// whole job process tree when cgroup isolation is active.
+func (m *Manager) AbortWorker(name string) error {
+	for _, w := range m.workers {
+		if w.GetConfig()["name"] != name {
+			continue
+		}
+		aborter, ok := w.(worker.Aborter)
+		if !ok {
+			return fmt.Errorf("worker %s does not support aborting", name)
+		}
+		m.logger.WithFields(logrus.Fields{
+			"event":              "abort_worker",
+			"target_worker_name": name,
+		}).Infof("aborting sync of worker %s", name)
+		aborter.AbortSync()
+		return nil
+	}
+	return fmt.Errorf("no worker named %s", name)
+}
+
 // GetStatus gets status of Manager
 func (m *Manager) GetStatus() *Status {
 	status := Status{
