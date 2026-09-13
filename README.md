@@ -1,57 +1,279 @@
-# lug 
+# lug
+
 [![release](https://img.shields.io/github/release/sjtug/lug.svg)](https://github.com/sjtug/lug/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sjtug/lug)](https://goreportcard.com/report/github.com/sjtug/lug)
-[![Build Status](https://travis-ci.org/sjtug/lug.svg)](https://travis-ci.org/sjtug/lug)
-[![Docker pulls](https://img.shields.io/docker/pulls/htfy96/lug.svg)](https://hub.docker.com/r/htfy96/lug/)
-[![Apache License](https://img.shields.io/github/license/sjtug/lug.svg)](https://github.com/sjtug/lug/blob/master/LICENSE)
 
-Extensible backend of software mirror. Read our [Wiki](https://github.com/sjtug/lug/wiki) for usage and guides for developmenet.
+Extensible backend of software mirror.
 
-## Use it in docker
+## Quick start
+
+```sh
+docker run -d \
+  -v /srv/mirror:/data \
+  -v $(pwd)/config.yaml:/app/config.yaml \
+  -p 8081:8081 -p 7001:7001 \
+  sjtug/lug -c /app/config.yaml
 ```
-docker run -d -v {{host_path}}:{{docker_path}} -v {{absolute_path_of_config.yaml}}:/go/src/github.com/sjtug/lug/config.yaml htfy96/lug {other args...}
+
+Refer to [`config.example.yaml`](config.example.yaml) for available options.
+
+### Ports
+
+| Port | Purpose |
+|------|---------|
+| 8081 | Prometheus metrics (`/metrics`) |
+| 7001 | JSON control API |
+
+## Configuration
+
+See [`config.example.yaml`](config.example.yaml) for a full annotated example.
+Key settings:
+
+| Key | Description |
+|-----|-------------|
+| `interval` | Seconds between scheduler poll ticks |
+| `concurrent_limit` | Hard cap on simultaneously running sync jobs |
+| `checkpoint` | Path to persist worker state across restarts |
+| `exporter_address` | Bind address for Prometheus metrics |
+| `json_api.address` | Bind address for the JSON control API |
+
+### Per-repo options
+
+Each entry under `repos` configures one mirror worker. Shell-script workers
+accept these additional fields:
+
+| Key | Description |
+|-----|-------------|
+| `rlimit_mem` | Memory budget per job (e.g. `1G`). Enforced via cgroup `memory.max`; the entire job tree is OOM-killed when exceeded. Ignored gracefully when cgroup isolation is unavailable. |
+| `timeout` | Wall-clock budget in seconds. The job tree is killed on expiry. |
+| `interval` | Seconds between syncs for this repo. If unset, the repo is synced only at startup. |
+
+### Elastic admission control
+
+When `admission.enabled` is `true`, lug gates queued job launches on:
+
+- **Memory PSI** — defers when memory `some/avg10` exceeds the threshold.
+- **Memory headroom** — reserves a fraction of available memory and checks
+  that the sum of granted budgets plus the new estimate fits.
+
+Estimates are derived from per-repo peak-memory EWMAs learned over past runs.
+Unknown repos assume a conservative default (512 MiB) until measured. The
+static `concurrent_limit` always applies as a hard cap on top.
+
+IO pressure is deliberately **not** an admission signal: a mirror host is
+IO-saturated by design, and gating on it would permanently starve the queue.
+
+## Cgroup v2 setup
+
+Lug uses cgroup v2 to enforce per-job memory limits, kill entire process trees
+on cancellation or timeout, and collect resource telemetry (peak memory, OOM
+kills, duration). **This is optional**: when cgroup isolation is unavailable,
+lug falls back to plain subprocess execution with a logged warning, and
+`rlimit_mem` / admission memory estimates are simply not enforced.
+
+### Requirements
+
+1. **Linux host with cgroup v2 unified hierarchy** (`/sys/fs/cgroup` mounted
+   as `cgroup2`). This is the default on all modern distros (Debian 11+,
+   Ubuntu 22.04+, Fedora 31+, RHEL 9+, NixOS 20.09+).
+2. **Delegated cgroup subtree** — lug must be able to create child cgroups and
+   write controller knobs (`memory.max`, `cgroup.kill`, etc.) under its own
+   cgroup. How to achieve this depends on the runtime.
+
+### Rootful Docker (Docker Engine with root daemon)
+
+Docker ≥ 20.10 supports `--cgroupns=private` (the default since Docker 23),
+which gives each container its own cgroup namespace and a writable cgroup root.
+Run lug with:
+
+```sh
+docker run -d \
+  --cgroupns=private \
+  -v /srv/mirror:/data \
+  -v $(pwd)/config.yaml:/app/config.yaml \
+  sjtug/lug -c /app/config.yaml
 ```
 
-### config.yaml
+This is sufficient — no `--privileged`, no extra capabilities, no bind-mounts
+of `/sys/fs/cgroup`. The container sees its own cgroup subtree as `/` and can
+write to it freely.
 
-The below configuration may be outdated. Refer to [config.example.yaml](https://github.com/sjtug/lug/blob/master/config.example.yaml)
-and [Wiki](https://github.com/sjtug/lug/wiki/Configuration) for the latest version.
+> **Verify**: inside the container, `cat /sys/fs/cgroup/cgroup.controllers`
+> should list `memory` (and ideally `pids`). If it shows an empty file or
+> the path does not exist, the host likely uses cgroup v1.
+
+### Rootless Podman
+
+Rootless Podman ≥ 4.0 delegates a user-owned cgroup subtree by default when
+the host runs systemd ≥ 247 and cgroup v2. No extra flags are needed:
+
+```sh
+podman run -d \
+  -v /srv/mirror:/data \
+  -v $(pwd)/config.yaml:/app/config.yaml \
+  docker.io/sjtug/lug -c /app/config.yaml
+```
+
+### systemd service (bare metal / VM)
+
+If running lug as a systemd service without containers:
+
+```ini
+[Service]
+ExecStart=/usr/bin/lug -c /etc/lug/config.yaml
+Delegate=yes
+```
+
+`Delegate=yes` permits lug to manage cgroups under its service scope.
+
+### Disabling cgroup isolation
+
+If cgroup v2 is unavailable (cgroup v1 host, restricted container, etc.), lug
+detects this at startup and logs a warning:
 
 ```
-interval: 3 # Interval between pollings
-loglevel: 5 # 0-5. 0 for ERROR and 5 for DEBUG
-logstashaddr: "172.0.0.4:6000" # TCP Address of logstash. empty means no logstash support
-dummy: # place your anchor here!
-    common_interval: &common_interval
-      interval: 3600
-    common_retry: &commone_retry
-      retry: 3
-repos:
-    - type: shell_script
-      script: rsync -av rsync://rsync.chiark.greenend.org.uk/ftp/users/sgtatham/putty-website-mirror/ /tmp/putty
-      name: putty
-      rlimit: 300M
-      <<: *common_interval # interval: 3600 will be inserted here
-    - type: external
-      name: ubuntu
-      proxy_to: http://ftp.sjtu.edu.cn/ubuntu/
-      <<: [*common_interval, *common_retry] # use array for importing multiple anchors
-# You can add more repos here, different repos may have different worker types,
-# refer to Worker Types section for detailed explanation
+level=warning msg="cgroup v2 job isolation unavailable; falling back to plain process execution (no memory.max enforcement, rusage-only telemetry)"
 ```
+
+No configuration change is needed — the fallback is automatic. `rlimit_mem`
+and `timeout` settings in the config are silently ignored when enforcement is
+unavailable; admission control will operate without memory estimates.
+
+## Observability
+
+### Prometheus metrics
+
+Exposed at `http://<exporter_address>/metrics` (default `:8081`).
+
+**Sync counters** (labels: `worker`):
+
+| Metric | Description |
+|--------|-------------|
+| `success_sync` | Successful sync runs (counter) |
+| `fail_sync` | Failed sync runs (counter) |
+
+**Resource telemetry** (labels: `worker`) — populated when cgroup isolation is
+active:
+
+| Metric | Description |
+|--------|-------------|
+| `lug_job_peak_mem_bytes` | Peak memory (bytes) of the last sync run |
+| `lug_job_peak_mem_ewma_bytes` | EWMA of peak memory across runs |
+| `lug_job_duration_seconds` | Wall time (seconds) of the last sync run |
+| `lug_job_duration_ewma_seconds` | EWMA of sync run wall time |
+| `lug_job_oom_kills_total` | Cumulative OOM kills observed |
+
+**Admission verdicts** (labels: `outcome = admitted | deferred`):
+
+| Metric | Description |
+|--------|-------------|
+| `lug_admission_verdicts_total` | Admission decisions (counter) |
+
+**Disk usage** (labels: `worker`):
+
+| Metric | Description |
+|--------|-------------|
+| `lug_disk_usage` | Disk usage in bytes |
+
+### Structured logs
+
+All log lines are JSON with `repo` and `sync_id` fields. Key events:
+
+| Event | Description |
+|-------|-------------|
+| `attempt_telemetry` | Emitted after every sync attempt with `duration_sec`, `peak_mem`, `oom_killed`, `cgroup_scoped` |
+| `trigger_sync` | A queued worker is launched |
+| `admission_deferred` | Admission controller deferred a launch (`reason` field explains why) |
+| `job_cgroup_kill` | Cancellation is reaping the job's cgroup tree |
+| `abort_worker` | An operator aborted a sync via the REST API |
+
+## JSON control API
+
+Served at `json_api.address` (default `:7001`). All responses are JSON.
+
+### Endpoints
+
+#### `GET /lug/v1/manager/summary`
+
+Worker status overview (public, safe for dashboards).
+
+```json
+{
+  "Running": true,
+  "WorkerStatus": {
+    "putty": { "Result": true, "LastFinished": "2025-01-01T00:00:00Z", "Idle": true }
+  }
+}
+```
+
+#### `GET /lug/v1/admin/manager/detail`
+
+Full status including per-worker stdout/stderr history and telemetry.
+
+#### `POST /lug/v1/admin/manager/start`
+
+Resume the scheduler after a stop. Workers whose interval has elapsed are
+queued on the next poll tick.
+
+#### `POST /lug/v1/admin/manager/stop`
+
+Pause the scheduler. Already-running syncs finish, but no new syncs are
+launched.
+
+#### `POST /lug/v1/admin/worker/:name/abort`
+
+Abort the in-flight sync of the named worker. The cancellation propagates
+through the worker's context and (with cgroup isolation) kills the entire
+process tree.
+
+- **202 Accepted** — cancellation initiated.
+- **404 Not Found** — no worker by that name, or the worker is idle.
+
+```sh
+# Example: abort a stuck rsync job
+curl -X POST http://localhost:7001/lug/v1/admin/worker/putty/abort
+```
+
+#### `DELETE /lug/v1/admin/manager`
+
+Gracefully shut down the manager (stop scheduler, then exit the run loop).
+
+### Manual sync triggering
+
+Lug does not currently expose a REST endpoint to trigger an immediate sync for
+a specific worker — syncs are launched by the scheduler when each worker's
+`interval` elapses. To force a sync to start earlier, restart lug or use the
+stop / start cycle:
+
+```sh
+# Force all eligible workers to re-enter the pending queue:
+curl -X POST http://localhost:7001/lug/v1/admin/manager/stop
+curl -X POST http://localhost:7001/lug/v1/admin/manager/start
+```
+
+On start, every worker whose interval has elapsed (including those that were
+just stopped) is queued for sync.
 
 ## Development
 
-Contributors should push to their own branch. Reviewed code will be merged to `master` branch.
+This project requires **Go ≥ 1.23** and uses Nix for the development
+environment.
 
-Currently this project assumes Go >= 1.23.
+```sh
+# Enter the dev shell (includes Go toolchain, golangci-lint, treefmt)
+nix develop
 
-1. set your `GOPATH` to a directory: `export GOPATH=/home/go`. Set `$GOPATH/bin` to your `$PATH`: `export PATH=$PATH:$GOPATH/bin`
-2. `go get github.com/sjtug/lug`
-3. Install dep by `curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh`
-3. `cd $GOPATH/src/github.com/sjtug/lug && dep ensure`
-4. Modify code, then use `go build .` to build binary, or test with `go test $(go list ./... | grep -v /vendor/)`
-5. Run `scripts/gen_license.sh` before committing your code
+# Build
+go build ./...
 
-NOTICE: Please attach test files when contributing to your module
+# Run tests (memory-capped to avoid host OOM from cgroup enforcement tests)
+go test -c -o /tmp/worker.test ./pkg/worker/
+systemd-run --user --scope -p MemoryMax=2G -p Delegate=yes /tmp/worker.test -test.v
 
+# Or without cgroup delegation (enforcement tests auto-skip):
+go test ./...
+```
+
+Tests that exercise cgroup enforcement (`TestCgroupEnforcement`,
+`TestCgroupTelemetryHappy`) require a delegated cgroup subtree and
+automatically skip otherwise.
