@@ -1,9 +1,20 @@
 interval: 3 # Interval between pollings
 loglevel: 5 # 1-5
-concurrent_limit: 1 # Maximum worker that can run at the same time
+concurrent_limit: 1 # Hard cap on workers running at the same time
 # Prometheus metrics are exposed at http://exporter_address/metrics
 exporter_address: :8081
 checkpoint: checkpoint.json
+
+# Elastic admission control: gates job launches on host memory pressure and
+# learned per-repo memory budgets (peak-memory EWMA from past runs).
+# IO is deliberately not an admission signal: a mirror host is IO-saturated
+# by design, and gating on it would starve the queue.
+# Requires cgroup v2 with a delegated subtree for full effect; concurrent_limit
+# above always applies as a hard cap on top.
+admission:
+    enabled: false # false: only concurrent_limit applies
+    mem_reserve_fraction: 0.2 # keep this fraction of available memory free
+    mem_psi_threshold: 15 # defer launches when memory some/avg10 exceeds this
 
 #logstash:
 #   address: listener.logz.io:5050 # logstash sink. Lug will send all logs to this address

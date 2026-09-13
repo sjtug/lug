@@ -27,6 +27,17 @@ type LogStashConfig struct {
 	AdditionalFields map[string]interface{} `mapstructure:"additional_fields"`
 }
 
+// AdmissionConfig tunes the elastic admission controller.
+type AdmissionConfig struct {
+	// Enabled switches pressure-based admission on. When false, only the
+	// static concurrent_limit gate applies.
+	Enabled bool
+	// MemReserveFraction of available memory kept free (default 0.2).
+	MemReserveFraction float64 `mapstructure:"mem_reserve_fraction"`
+	// MemPSIThreshold defers launches when memory some/avg10 exceeds it (default 15).
+	MemPSIThreshold float64 `mapstructure:"mem_psi_threshold"`
+}
+
 // Config stores all configuration of lug
 type Config struct {
 	// Interval between pollings in manager
@@ -43,6 +54,8 @@ type Config struct {
 	JsonAPIConfig JsonAPIConfig `mapstructure:"json_api"`
 	// Worker sync checkpoint path
 	Checkpoint string `mapstructure:"checkpoint"`
+	// Admission tunes the elastic admission controller
+	Admission AdmissionConfig `mapstructure:"admission"`
 	// Config for each repo is represented as an array of RepoConfig. Nested structure is disallowed
 	Repos []RepoConfig
 	// A dummy section that will not be used in our program.

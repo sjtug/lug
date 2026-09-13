@@ -12,7 +12,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/sjtug/lug/pkg/admission"
 	"github.com/sjtug/lug/pkg/config"
+	"github.com/sjtug/lug/pkg/exporter"
 	"github.com/sjtug/lug/pkg/worker"
 )
 
@@ -41,7 +43,12 @@ type Manager struct {
 	running               bool
 	// storing index of worker to launch
 	pendingQueue []int
-	logger       *logrus.Entry
+	// admission gates launches on host pressure; nil when disabled
+	admission *admission.Controller
+	// hasGrant tracks workers holding an admission grant, so the poll loop
+	// can release budgets once a worker returns to idle
+	hasGrant map[string]bool
+	logger   *logrus.Entry
 }
 
 // Status holds the status of a manager and its workers
@@ -123,6 +130,13 @@ func NewManager(config *config.Config) (*Manager, error) {
 			workersLastInvokeTime[name] = info.LastInvokeTime
 		}
 	}
+	var admissionCtl *admission.Controller
+	if config.Admission.Enabled {
+		admissionCtl = admission.NewController(admission.Config{
+			MemReserveFraction: config.Admission.MemReserveFraction,
+			MemPSIThreshold:    config.Admission.MemPSIThreshold,
+		})
+	}
 	newManager := Manager{
 		config:                config,
 		workers:               []worker.Worker{},
@@ -130,6 +144,8 @@ func NewManager(config *config.Config) (*Manager, error) {
 		controlChan:           make(chan int),
 		finishChan:            make(chan int),
 		running:               true,
+		admission:             admissionCtl,
+		hasGrant:              make(map[string]bool),
 		logger:                logger,
 	}
 	for _, repoConfig := range config.Repos {
@@ -197,34 +213,53 @@ func (m *Manager) isAlreadyInPendingQueue(workerIdx int) bool {
 	return false
 }
 
+// launchWorkerFromPendingQueue starts queued workers in FIFO order.
+// max_allowed is the static concurrent_limit gate; when admission control is
+// enabled, each launch must also pass the controller, which checks host
+// pressure and learned memory budgets. On the first deferral the drain stops
+// (FIFO, no overtaking), and the remaining workers retry next poll tick.
 func (m *Manager) launchWorkerFromPendingQueue(max_allowed int) {
 	if max_allowed <= 0 {
 		return
 	}
-	var new_idx int
-	if max_allowed > len(m.pendingQueue) {
-		new_idx = len(m.pendingQueue)
-	} else {
-		new_idx = max_allowed
-	}
 	m.logger.WithFields(logrus.Fields{
 		"event":         "launch_worker_from_pending_queue",
 		"max_allowed":   max_allowed,
-		"new_idx":       new_idx,
 		"pending_queue": spew.Sprint(m.pendingQueue),
 	}).Debug("launch worker from pending queue")
-	to_launch := m.pendingQueue[:new_idx]
-	m.pendingQueue = m.pendingQueue[new_idx:]
 
-	for _, w_idx := range to_launch {
+	launched := 0
+	for launched < max_allowed && len(m.pendingQueue) > 0 {
+		w_idx := m.pendingQueue[0]
 		w := m.workers[w_idx]
 		wConfig := w.GetConfig()
+		name := wConfig["name"].(string)
+
+		if m.admission != nil {
+			verdict := m.admission.TryAdmit(admission.Request{
+				Name:        name,
+				MemEstimate: admission.Estimate(w.GetStatus().Telemetry.PeakMemEWMA),
+			})
+			exporter.GetInstance().AdmissionVerdict(verdict.Admit)
+			if !verdict.Admit {
+				m.logger.WithFields(logrus.Fields{
+					"event":              "admission_deferred",
+					"target_worker_name": name,
+					"reason":             verdict.Reason,
+				}).Infof("admission deferred for worker %s: %s", name, verdict.Reason)
+				break
+			}
+			m.hasGrant[name] = true
+		}
+
+		m.pendingQueue = m.pendingQueue[1:]
 		m.logger.WithFields(logrus.Fields{
 			"event":              "trigger_sync",
-			"target_worker_name": wConfig["name"],
-		}).Infof("trigger sync for worker %s from pendingQueue", wConfig["name"])
-		m.workersLastInvokeTime[wConfig["name"].(string)] = time.Now()
+			"target_worker_name": name,
+		}).Infof("trigger sync for worker %s from pendingQueue", name)
+		m.workersLastInvokeTime[name] = time.Now()
 		w.TriggerSync()
+		launched++
 	}
 }
 
@@ -268,6 +303,12 @@ func (m *Manager) Run() {
 						continue
 					}
 					wConfig := w.GetConfig()
+					if name, ok := wConfig["name"].(string); ok && m.hasGrant[name] {
+						if m.admission != nil {
+							m.admission.Release(name)
+						}
+						delete(m.hasGrant, name)
+					}
 					elapsed := time.Since(m.workersLastInvokeTime[wConfig["name"].(string)])
 					sec2sync, ok := wConfig["interval"].(int)
 					if !ok {
