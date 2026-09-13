@@ -50,7 +50,7 @@
           ...
         }:
         let
-          goVersion = "1.25";
+          goVersion = lib.fileContents ./.go-version;
         in
         {
           _module.args.pkgs = import inputs.nixpkgs {
@@ -94,10 +94,6 @@
               config.treefmt.build.devShell
               config.pre-commit.devShell
             ];
-
-            shellHook = ''
-              echo 1>&2 "Welcome to the development shell!"
-            '';
 
             packages = with pkgs; [
               (mkGoEnv { pwd = ./.; })
