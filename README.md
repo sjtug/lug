@@ -234,25 +234,81 @@ process tree.
 curl -X POST http://localhost:7001/lug/v1/admin/worker/putty/abort
 ```
 
+#### `POST /lug/v1/admin/worker/:name/sync`
+
+Trigger an immediate sync for the named worker. The worker is inserted at the
+head of the pending queue (or lifted to the head if already queued) and
+launched immediately if capacity allows.
+
+- **202 Accepted** — sync queued / launched.
+- **404 Not Found** — no worker by that name.
+- **409 Conflict** — the worker is already syncing. Abort first if you need
+  to restart it.
+
+```sh
+# Trigger putty sync right now
+curl -X POST http://localhost:7001/lug/v1/admin/worker/putty/sync
+
+# Force a restart: abort then re-trigger
+curl -X POST http://localhost:7001/lug/v1/admin/worker/putty/abort
+sleep 2
+curl -X POST http://localhost:7001/lug/v1/admin/worker/putty/sync
+```
+
+#### `GET /lug/v1/admin/queue`
+
+Snapshot of the task queue: which workers are currently syncing (with live
+cgroup/PID info) and which are pending launch.
+
+```json
+{
+  "running": [
+    {
+      "name": "putty",
+      "active_job": {
+        "cgroup_path": "/sys/fs/cgroup/system.slice/.../jobs/putty-1234567890",
+        "main_pid": 12345,
+        "started_at": "2025-01-01T00:00:00Z"
+      }
+    }
+  ],
+  "pending": ["ubuntu", "debian"]
+}
+```
+
+#### `GET /lug/v1/admin/worker/:name/job`
+
+Live details of the named worker's active sync job: cgroup path, PID, start
+time, and — when cgroup isolation is active — live memory and PID counters
+read directly from the kernel.
+
+- **200 OK** — job details (see below).
+- **404 Not Found** — no such worker, or the worker is idle.
+
+```json
+{
+  "name": "putty",
+  "active_job": {
+    "cgroup_path": "/sys/fs/cgroup/.../jobs/putty-1234567890",
+    "main_pid": 12345,
+    "started_at": "2025-01-01T00:00:00Z"
+  },
+  "cgroup_stats": {
+    "memory_current_bytes": 104857600,
+    "memory_peak_bytes": 209715200,
+    "memory_limit_bytes": 1073741824,
+    "pids": 5
+  },
+  "attach_hint": "nsenter --cgroup=/sys/fs/cgroup/.../jobs/putty-1234567890 --fork <command>"
+}
+```
+
+The `attach_hint` field shows the `nsenter` invocation to enter the job's
+cgroup for interactive debugging (run a shell, inspect `/proc`, etc.).
+
 #### `DELETE /lug/v1/admin/manager`
 
 Gracefully shut down the manager (stop scheduler, then exit the run loop).
-
-### Manual sync triggering
-
-Lug does not currently expose a REST endpoint to trigger an immediate sync for
-a specific worker — syncs are launched by the scheduler when each worker's
-`interval` elapses. To force a sync to start earlier, restart lug or use the
-stop / start cycle:
-
-```sh
-# Force all eligible workers to re-enter the pending queue:
-curl -X POST http://localhost:7001/lug/v1/admin/manager/stop
-curl -X POST http://localhost:7001/lug/v1/admin/manager/start
-```
-
-On start, every worker whose interval has elapsed (including those that were
-just stopped) is queued for sync.
 
 ## Development
 

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -27,6 +28,10 @@ type shellScriptExecutor struct {
 	// timeout is the per-attempt wall clock budget (0 = no timeout), parsed
 	// from `timeout` (seconds).
 	timeout time.Duration
+
+	// mu guards activeJob, which is set while RunOnce is executing.
+	mu        sync.Mutex
+	activeJob *ActiveJobInfo
 }
 
 func newShellScriptExecutor(cfg config.RepoConfig) (*shellScriptExecutor, error) {
@@ -159,6 +164,21 @@ func (w *shellScriptExecutor) RunOnce(ctx context.Context, logger *logrus.Entry)
 	if err != nil {
 		return execResult{}, fmt.Errorf("execution cannot start: %w", err)
 	}
+
+	// Publish the active job so operators can inspect live resource usage.
+	info := &ActiveJobInfo{MainPID: cmd.Process.Pid, StartedAt: start}
+	if cg != nil {
+		info.CgroupPath = cg.Path()
+	}
+	w.mu.Lock()
+	w.activeJob = info
+	w.mu.Unlock()
+	defer func() {
+		w.mu.Lock()
+		w.activeJob = nil
+		w.mu.Unlock()
+	}()
+
 	err = cmd.Wait()
 
 	result := execResult{
@@ -191,4 +211,16 @@ func (w *shellScriptExecutor) RunOnce(ctx context.Context, logger *logrus.Entry)
 		}
 	}
 	return result, nil
+}
+
+// ActiveJob returns information about the currently running job, or nil when
+// the executor is idle. Implements jobInspector.
+func (w *shellScriptExecutor) ActiveJob() *ActiveJobInfo {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.activeJob == nil {
+		return nil
+	}
+	copy := *w.activeJob
+	return &copy
 }

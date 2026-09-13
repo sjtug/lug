@@ -33,6 +33,29 @@ const (
 	StartFinish
 )
 
+// syncRequest asks the Run() goroutine to enqueue a manual sync.
+type syncRequest struct {
+	name     string
+	resultCh chan error
+}
+
+// queueRequest asks for a snapshot of the task queue.
+type queueRequest struct {
+	resultCh chan QueueStatus
+}
+
+// QueueStatus is the response from GetQueueStatus.
+type QueueStatus struct {
+	Running []RunningEntry `json:"running"`
+	Pending []string       `json:"pending"`
+}
+
+// RunningEntry describes a currently syncing worker.
+type RunningEntry struct {
+	Name      string                `json:"name"`
+	ActiveJob *worker.ActiveJobInfo `json:"active_job,omitempty"`
+}
+
 // Manager holds worker instances
 type Manager struct {
 	config                *config.Config
@@ -48,7 +71,11 @@ type Manager struct {
 	// hasGrant tracks workers holding an admission grant, so the poll loop
 	// can release budgets once a worker returns to idle
 	hasGrant map[string]bool
-	logger   *logrus.Entry
+	// syncReqChan carries manual-sync requests into the Run() goroutine.
+	syncReqChan chan syncRequest
+	// queueReqChan carries queue-inspection requests into the Run() goroutine.
+	queueReqChan chan queueRequest
+	logger       *logrus.Entry
 }
 
 // Status holds the status of a manager and its workers
@@ -146,6 +173,8 @@ func NewManager(config *config.Config) (*Manager, error) {
 		running:               true,
 		admission:             admissionCtl,
 		hasGrant:              make(map[string]bool),
+		syncReqChan:           make(chan syncRequest),
+		queueReqChan:          make(chan queueRequest),
 		logger:                logger,
 	}
 	for _, repoConfig := range config.Repos {
@@ -339,6 +368,10 @@ func (m *Manager) Run() {
 					}
 				}
 			}
+		case req := <-m.syncReqChan:
+			req.resultCh <- m.handleSyncRequest(req.name)
+		case req := <-m.queueReqChan:
+			req.resultCh <- m.buildQueueStatus()
 		case sig, ok := <-m.controlChan:
 			if ok {
 				switch sig {
@@ -427,6 +460,93 @@ func (m *Manager) AbortWorker(name string) error {
 		return nil
 	}
 	return fmt.Errorf("no worker named %s", name)
+}
+
+// TriggerWorkerSync inserts the named worker at the head of the pending
+// queue (or lifts it there if already queued). The scheduler launches it
+// immediately if capacity allows.
+func (m *Manager) TriggerWorkerSync(name string) error {
+	req := syncRequest{name: name, resultCh: make(chan error, 1)}
+	m.syncReqChan <- req
+	return <-req.resultCh
+}
+
+// GetQueueStatus returns a snapshot of running and pending workers.
+func (m *Manager) GetQueueStatus() QueueStatus {
+	req := queueRequest{resultCh: make(chan QueueStatus, 1)}
+	m.queueReqChan <- req
+	return <-req.resultCh
+}
+
+// handleSyncRequest runs inside the Run() goroutine with exclusive queue
+// access. It validates, enqueues, and immediately tries to launch.
+func (m *Manager) handleSyncRequest(name string) error {
+	idx := m.findWorkerIdx(name)
+	if idx < 0 {
+		return fmt.Errorf("no worker named %s", name)
+	}
+	w := m.workers[idx]
+	if !w.GetStatus().Idle {
+		return fmt.Errorf("worker %s is currently syncing", name)
+	}
+	m.removeFromPendingQueue(idx)
+	m.pendingQueue = append([]int{idx}, m.pendingQueue...)
+	m.logger.WithFields(logrus.Fields{
+		"event":              "manual_sync",
+		"target_worker_name": name,
+	}).Infof("manual sync requested for worker %s", name)
+	// Try to launch immediately instead of waiting for the next tick.
+	running := m.countRunning()
+	m.launchWorkerFromPendingQueue(m.config.ConcurrentLimit - running)
+	return nil
+}
+
+// buildQueueStatus runs inside the Run() goroutine.
+func (m *Manager) buildQueueStatus() QueueStatus {
+	qs := QueueStatus{Running: []RunningEntry{}, Pending: []string{}}
+	for _, w := range m.workers {
+		status := w.GetStatus()
+		name := w.GetConfig()["name"].(string)
+		if !status.Idle {
+			qs.Running = append(qs.Running, RunningEntry{
+				Name:      name,
+				ActiveJob: status.ActiveJob,
+			})
+		}
+	}
+	for _, idx := range m.pendingQueue {
+		name := m.workers[idx].GetConfig()["name"].(string)
+		qs.Pending = append(qs.Pending, name)
+	}
+	return qs
+}
+
+func (m *Manager) findWorkerIdx(name string) int {
+	for i, w := range m.workers {
+		if w.GetConfig()["name"] == name {
+			return i
+		}
+	}
+	return -1
+}
+
+func (m *Manager) removeFromPendingQueue(idx int) {
+	for i, qIdx := range m.pendingQueue {
+		if qIdx == idx {
+			m.pendingQueue = append(m.pendingQueue[:i], m.pendingQueue[i+1:]...)
+			return
+		}
+	}
+}
+
+func (m *Manager) countRunning() int {
+	count := 0
+	for _, w := range m.workers {
+		if !w.GetStatus().Idle {
+			count++
+		}
+	}
+	return count
 }
 
 // GetStatus gets status of Manager

@@ -178,6 +178,9 @@ func newJobCgroup(name string, memMax uint64) (*jobCgroup, error) {
 	return &jobCgroup{dir: dir, fd: fd}, nil
 }
 
+// Path returns the absolute cgroup directory for this job.
+func (j *jobCgroup) Path() string { return j.dir }
+
 // Kill terminates every process in the job cgroup (cgroup.kill, Linux >= 5.14).
 func (j *jobCgroup) Kill() error {
 	return os.WriteFile(filepath.Join(j.dir, "cgroup.kill"), []byte("1"), 0)
@@ -211,6 +214,27 @@ func (j *jobCgroup) Close() {
 	}
 	log.WithField("event", "cgroup_remove_failed").WithField("dir", j.dir).
 		Warn("failed to remove job cgroup; it will leak until manual cleanup")
+}
+
+// ReadCgroupStats reads live resource counters from a cgroup v2 directory.
+// Returns zero values for any counter that cannot be read.
+func ReadCgroupStats(dir string) CgroupStats {
+	var s CgroupStats
+	if data, err := os.ReadFile(filepath.Join(dir, "memory.current")); err == nil {
+		s.MemoryCurrentBytes, _ = strconv.ParseUint(strings.TrimSpace(string(data)), 10, 64)
+	}
+	if data, err := os.ReadFile(filepath.Join(dir, "memory.peak")); err == nil {
+		s.MemoryPeakBytes, _ = strconv.ParseUint(strings.TrimSpace(string(data)), 10, 64)
+	}
+	if data, err := os.ReadFile(filepath.Join(dir, "memory.max")); err == nil {
+		if v := strings.TrimSpace(string(data)); v != "max" {
+			s.MemoryLimitBytes, _ = strconv.ParseUint(v, 10, 64)
+		}
+	}
+	if data, err := os.ReadFile(filepath.Join(dir, "pids.current")); err == nil {
+		s.PIDs, _ = strconv.Atoi(strings.TrimSpace(string(data)))
+	}
+	return s
 }
 
 // attachToCgroup makes cmd's child enter the job cgroup atomically at

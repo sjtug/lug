@@ -97,7 +97,7 @@ func (eiw *executorInvokeWorker) AbortSync() {
 func (eiw *executorInvokeWorker) GetStatus() Status {
 	eiw.rwmutex.RLock()
 	defer eiw.rwmutex.RUnlock()
-	return Status{
+	status := Status{
 		Idle:         eiw.idle,
 		Result:       eiw.result,
 		LastFinished: eiw.lastFinished,
@@ -105,6 +105,10 @@ func (eiw *executorInvokeWorker) GetStatus() Status {
 		Stdout:       eiw.stdout.GetAll(),
 		Stderr:       eiw.stderr.GetAll(),
 	}
+	if inspector, ok := eiw.executor.(jobInspector); ok {
+		status.ActiveJob = inspector.ActiveJob()
+	}
+	return status
 }
 
 func (eiw *executorInvokeWorker) GetConfig() config.RepoConfig {

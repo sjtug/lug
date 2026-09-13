@@ -35,6 +35,9 @@ type Status struct {
 	Telemetry Telemetry
 	// Idle stands for whether worker is idle, false if syncing
 	Idle bool
+	// ActiveJob describes the running job (cgroup path, PID, start time).
+	// Nil when the worker is idle.
+	ActiveJob *ActiveJobInfo `json:"active_job,omitempty"`
 	// Last stdout(s) for admin. Internal implementation may vary to provide it in Status()
 	Stdout []string
 	// Last stderr(s) for admin. Internal implementation may vary to provide it in Status()
