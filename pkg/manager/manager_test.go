@@ -11,6 +11,21 @@ import (
 	"github.com/sjtug/lug/pkg/config"
 )
 
+func TestAbortWorkerRejectsIdleWorker(t *testing.T) {
+	manager, err := NewManager(&config.Config{
+		Repos: []config.RepoConfig{
+			{
+				"type":   "shell_script",
+				"name":   "idle",
+				"script": "true",
+			},
+		},
+	})
+	assert.NoError(t, err)
+
+	assert.EqualError(t, manager.AbortWorker("idle"), "worker idle is idle")
+}
+
 func TestManagerStartUp(t *testing.T) {
 	manager, err := NewManager(&config.Config{
 		Interval: 3,

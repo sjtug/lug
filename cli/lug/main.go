@@ -48,16 +48,30 @@ func getFlags() (flags CommandFlags) {
 // Register Logger and set logLevel
 func prepareLogger(logLevel log.Level, logStashAddr string, additionalFields map[string]interface{}) {
 	log.SetLevel(logLevel)
+
+	// 12-factor XI: logs are an event stream written unbuffered to stdout.
+	// Docker's logging driver (journald/loki/json-file) handles routing.
+	log.SetFormatter(&log.JSONFormatter{
+		TimestampFormat: time.RFC3339Nano,
+		FieldMap: log.FieldMap{
+			log.FieldKeyMsg: "msg",
+		},
+	})
+	log.SetOutput(os.Stdout)
+
 	if logStashAddr != "" {
 		hook, err := logrustash.NewAsyncHookWithFields("tcp", logStashAddr, "lug", additionalFields)
 		if err != nil {
-			log.Fatal(err)
+			// A misconfigured logstash sink must not take the scheduler down;
+			// the stdout event stream remains the source of truth.
+			log.WithError(err).Warn("logstash hook disabled")
+		} else {
+			hook.WaitUntilBufferFrees = true
+			hook.ReconnectBaseDelay = time.Second
+			hook.ReconnectDelayMultiplier = 2
+			hook.MaxSendRetries = 10
+			log.AddHook(hook)
 		}
-		hook.WaitUntilBufferFrees = true
-		hook.ReconnectBaseDelay = time.Second
-		hook.ReconnectDelayMultiplier = 2
-		hook.MaxSendRetries = 10
-		log.AddHook(hook)
 	}
 }
 
@@ -67,8 +81,8 @@ func init() {
 	flags := getFlags()
 
 	cfgViper := config.CfgViper
-	cfgViper.BindPFlag("json_api.address", flag.Lookup("jsonapi"))
-	cfgViper.BindPFlag("exporter_address", flag.Lookup("exporter"))
+	_ = cfgViper.BindPFlag("json_api.address", flag.Lookup("jsonapi"))
+	_ = cfgViper.BindPFlag("exporter_address", flag.Lookup("exporter"))
 
 	if flags.version {
 		fmt.Print(lugVersionInfo)
@@ -86,7 +100,7 @@ func init() {
 		fmt.Print(configHelp)
 		os.Exit(0)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	cfg = config.Config{}
 	err = cfg.Parse(file)
 
@@ -105,7 +119,11 @@ func main() {
 	}
 	jsonapi := manager.NewRestfulAPI(m)
 	handler := jsonapi.GetAPIHandler()
-	go http.ListenAndServe(cfg.JsonAPIConfig.Address, handler)
+	go func() {
+		if err := http.ListenAndServe(cfg.JsonAPIConfig.Address, handler); err != nil {
+			log.Error(err)
+		}
+	}()
 
 	go exporter.Expose(cfg.ExporterAddr)
 	m.Run()

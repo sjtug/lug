@@ -35,3 +35,8 @@ _testmain.go
 /Caddyfile
 /gomplate*
 /_vendor*
+
+/.direnv
+/.pre-commit-config.flake.yaml
+
+

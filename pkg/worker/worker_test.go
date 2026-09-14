@@ -1,21 +1,23 @@
 package worker
 
 import (
-	"io"
-	"os/exec"
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"strconv"
 	"strings"
+	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/sjtug/lug/pkg/config"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-
-	"errors"
-	"sync/atomic"
-
-	"github.com/sirupsen/logrus"
-	"github.com/sjtug/lug/pkg/config"
 )
 
 func TestNewExternalWorker(t *testing.T) {
@@ -100,9 +102,96 @@ type dummyExecutor struct {
 	RunCnt int32
 }
 
-func (d *dummyExecutor) RunOnce(logger *logrus.Entry, utilities []utility) (execResult, error) {
+func (d *dummyExecutor) RunOnce(ctx context.Context, logger *logrus.Entry) (execResult, error) {
 	atomic.AddInt32(&d.RunCnt, 1)
-	return execResult{"", ""}, errors.New("dummy error")
+	return execResult{}, errors.New("dummy error")
+}
+
+type failOnceExecutor struct {
+	RunCnt int32
+}
+
+func (d *failOnceExecutor) RunOnce(ctx context.Context, logger *logrus.Entry) (execResult, error) {
+	if atomic.AddInt32(&d.RunCnt, 1) == 1 {
+		return execResult{}, errors.New("first attempt failed")
+	}
+	return execResult{}, nil
+}
+
+func TestExecutorInvokeWorkerLogsEveryAttemptStart(t *testing.T) {
+	asrt := assert.New(t)
+	d := &failOnceExecutor{}
+	cfg := config.RepoConfig{
+		"retry":          2,
+		"retry_interval": 0,
+		"name":           "retry-log-test",
+	}
+	control := make(chan int, 1)
+	w, err := NewExecutorInvokeWorker(d, Status{Idle: true}, cfg, control)
+	asrt.NoError(err)
+
+	logger, hook := logrustest.NewNullLogger()
+	w.logger = logger.WithField("repo", "retry-log-test")
+	go w.RunSync()
+	w.TriggerSync()
+
+	asrt.Eventually(func() bool {
+		return atomic.LoadInt32(&d.RunCnt) == 2 && w.GetStatus().Idle
+	}, time.Second, 10*time.Millisecond)
+
+	var attempts []int
+	for _, entry := range hook.AllEntries() {
+		if entry.Data["event"] == "start_execution" {
+			attempt, ok := entry.Data["try_cnt"].(int)
+			asrt.True(ok)
+			attempts = append(attempts, attempt)
+		}
+	}
+	asrt.Equal([]int{1, 2}, attempts)
+}
+
+func TestExecutorInvokeWorkerDoesNotWaitAfterFinalAttempt(t *testing.T) {
+	asrt := assert.New(t)
+	d := &dummyExecutor{}
+	control := make(chan int, 1)
+	w, err := NewExecutorInvokeWorker(d, Status{Idle: true}, config.RepoConfig{
+		"retry":          1,
+		"retry_interval": 3600,
+		"name":           "no-final-wait-test",
+	}, control)
+	asrt.NoError(err)
+
+	go w.RunSync()
+	w.TriggerSync()
+
+	asrt.Eventually(func() bool {
+		return atomic.LoadInt32(&d.RunCnt) == 1 && w.GetStatus().Idle
+	}, time.Second, 10*time.Millisecond)
+}
+
+func TestExecutorInvokeWorkerAbortInterruptsRetryWait(t *testing.T) {
+	asrt := assert.New(t)
+	d := &dummyExecutor{}
+	control := make(chan int, 1)
+	w, err := NewExecutorInvokeWorker(d, Status{Idle: true}, config.RepoConfig{
+		"retry":          2,
+		"retry_interval": 3600,
+		"name":           "cancel-retry-wait-test",
+	}, control)
+	asrt.NoError(err)
+
+	go w.RunSync()
+	w.TriggerSync()
+	asrt.Eventually(func() bool {
+		return atomic.LoadInt32(&d.RunCnt) == 1 && !w.GetStatus().Idle
+	}, time.Second, 10*time.Millisecond)
+
+	w.AbortSync()
+
+	asrt.Eventually(func() bool {
+		return w.GetStatus().Idle
+	}, time.Second, 10*time.Millisecond)
+	asrt.Equal(int32(1), atomic.LoadInt32(&d.RunCnt))
 }
 
 func TestExecutorInvokeWorker(t *testing.T) {
@@ -137,48 +226,133 @@ func TestExecutorInvokeWorker(t *testing.T) {
 	asrt.Equal(2, int(atomic.LoadInt32(&d.RunCnt)))
 }
 
-type limitReader struct {
-	cnt   int
-	limit int
-}
-
-func newLimitReader(limit int) *limitReader {
-	return &limitReader{
-		cnt:   0,
-		limit: limit,
-	}
-}
-func (i *limitReader) Read(p []byte) (int, error) {
-	if i.cnt > i.limit {
-		return 0, io.EOF
-	}
-	i.cnt += len(p)
-	for i := 0; i < len(p); i++ {
-		p[i] = 5 // shouldn't use zero here, because sometimes pages filled with zero are not allocated
-	}
-	return len(p), nil
-}
-
-func TestUtilityRlimit(t *testing.T) {
+func TestShellScriptExecutorTimeout(t *testing.T) {
 	asrt := assert.New(t)
-	external_worker, ok := NewExternalWorker(config.RepoConfig{
-		"name":       "test_worker",
-		"rlimit_mem": "10M",
+	e, err := newShellScriptExecutor(config.RepoConfig{
+		"name":    "timeout_test",
+		"script":  "sleep 30",
+		"timeout": 1,
 	})
-	asrt.Nil(ok)
+	asrt.Nil(err)
+	start := time.Now()
+	result, err := e.RunOnce(context.Background(), logrus.WithField("repo", "timeout_test"))
+	asrt.NotNil(err)
+	asrt.Contains(err.Error(), "timeout")
+	asrt.Less(time.Since(start), 10*time.Second)
+	asrt.Greater(result.Duration, time.Duration(0))
+}
 
-	rlimitUtility := newRlimit(external_worker)
+func TestShellScriptExecutorCancel(t *testing.T) {
+	asrt := assert.New(t)
+	e, err := newShellScriptExecutor(config.RepoConfig{
+		"name":   "cancel_test",
+		"script": "sleep 30",
+	})
+	asrt.Nil(err)
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		cancel()
+	}()
+	start := time.Now()
+	_, err = e.RunOnce(ctx, logrus.WithField("repo", "cancel_test"))
+	asrt.NotNil(err)
+	asrt.Less(time.Since(start), 10*time.Second)
+}
 
-	cmd := exec.Command("rev")
-	cmd.Stdin = newLimitReader(20000000) // > 10M = 10485760
-	rlimitUtility.preHook()
-	err1 := cmd.Start()
-	rlimitUtility.postHook()
-	var err2 error
-	if err1 == nil {
-		err2 = cmd.Wait()
+func TestShellScriptExecutorCancelKillsDescendants(t *testing.T) {
+	asrt := assert.New(t)
+	pidFile := t.TempDir() + "/child.pid"
+	e, err := newShellScriptExecutor(config.RepoConfig{
+		"name": "cancel_descendants_test",
+		"script": fmt.Sprintf(
+			`sh -c 'sleep 30 & echo $! > %s; wait'`, pidFile,
+		),
+	})
+	asrt.NoError(err)
+	// Force the production fallback used by restricted containers where cgroup
+	// delegation is unavailable.
+	e.newJobCgroup = func(string, uint64) (*jobCgroup, error) { return nil, nil }
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		_, runErr := e.RunOnce(ctx, logrus.WithField("repo", "cancel_descendants_test"))
+		errCh <- runErr
+	}()
+
+	var childPID int
+	asrt.Eventually(func() bool {
+		data, readErr := os.ReadFile(pidFile)
+		if readErr != nil {
+			return false
+		}
+		childPID, readErr = strconv.Atoi(strings.TrimSpace(string(data)))
+		return readErr == nil
+	}, 2*time.Second, 10*time.Millisecond)
+	if childPID == 0 {
+		cancel()
+		t.Fatal("child process did not publish its PID")
 	}
-	asrt.True(err1 != nil || err2 != nil)
+
+	start := time.Now()
+	cancel()
+	select {
+	case runErr := <-errCh:
+		asrt.Error(runErr)
+		asrt.Contains(runErr.Error(), "canceled")
+	case <-time.After(5 * time.Second):
+		t.Fatal("executor did not return promptly after cancellation")
+	}
+	asrt.Less(time.Since(start), 5*time.Second)
+	asrt.Eventually(func() bool {
+		err := syscall.Kill(childPID, 0)
+		return errors.Is(err, syscall.ESRCH)
+	}, 2*time.Second, 10*time.Millisecond, "descendant process %d survived cancellation", childPID)
+}
+
+func TestShellScriptExecutorTelemetry(t *testing.T) {
+	asrt := assert.New(t)
+	e, err := newShellScriptExecutor(config.RepoConfig{
+		"name":   "telemetry_test",
+		"script": "true",
+	})
+	asrt.Nil(err)
+	result, err := e.RunOnce(context.Background(), logrus.WithField("repo", "telemetry_test"))
+	asrt.Nil(err)
+	asrt.Greater(result.Duration, time.Duration(0))
+	// PeakMemBytes > 0 only when cgroup v2 delegation is available; do not assert.
+}
+
+func TestTelemetryObserve(t *testing.T) {
+	asrt := assert.New(t)
+	var tel Telemetry
+	tel.Observe(10*time.Second, 1000, false)
+	asrt.Equal(10*time.Second, tel.DurationEWMA)
+	asrt.Equal(uint64(1000), tel.PeakMemEWMA)
+	tel.Observe(20*time.Second, 2000, true)
+	asrt.Equal(uint64(1), tel.OOMKills)
+	asrt.Equal(uint64(2), tel.Runs)
+	// EWMA moves toward the new sample but not all the way
+	asrt.Greater(tel.DurationEWMA, 10*time.Second)
+	asrt.Less(tel.DurationEWMA, 20*time.Second)
+	asrt.Greater(tel.PeakMemEWMA, uint64(1000))
+	asrt.Less(tel.PeakMemEWMA, uint64(2000))
+	// Zero samples must not disturb the EWMAs
+	prev := tel
+	tel.Observe(0, 0, false)
+	asrt.Equal(prev.DurationEWMA, tel.DurationEWMA)
+	asrt.Equal(prev.PeakMemEWMA, tel.PeakMemEWMA)
+}
+
+func TestRlimitMemRejected(t *testing.T) {
+	asrt := assert.New(t)
+	_, err := newShellScriptExecutor(config.RepoConfig{
+		"name":       "bad_rlimit",
+		"script":     "true",
+		"rlimit_mem": "not-a-size",
+	})
+	asrt.NotNil(err)
 }
 
 func TestShellScriptWorkerArgParse(t *testing.T) {
