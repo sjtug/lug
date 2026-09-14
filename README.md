@@ -21,7 +21,7 @@ Refer to [`config.example.yaml`](config.example.yaml) for available options.
 
 | Port | Purpose |
 |------|---------|
-| 8081 | Prometheus metrics (`/metrics`) |
+| 8080 by default (`8081` in `config.example.yaml`) | Prometheus metrics (`/metrics`) |
 | 7001 | JSON control API |
 
 ## Configuration
@@ -67,9 +67,9 @@ IO-saturated by design, and gating on it would permanently starve the queue.
 
 Lug uses cgroup v2 to enforce per-job memory limits, kill entire process trees
 on cancellation or timeout, and collect resource telemetry (peak memory, OOM
-kills, duration). **This is optional**: when cgroup isolation is unavailable,
-lug still kills the job's whole process group on cancellation or timeout, but
-`rlimit_mem` and peak-memory telemetry are unavailable.
+kills, duration). **This is optional**: on Linux, when cgroup isolation is
+unavailable, lug still kills the job's whole process group on cancellation or
+timeout, but `rlimit_mem` and peak-memory telemetry are unavailable.
 
 ### Requirements
 
@@ -133,7 +133,7 @@ If cgroup v2 is unavailable (cgroup v1 host, restricted container, etc.), lug
 detects this at startup and logs a warning:
 
 ```
-level=warning msg="cgroup v2 job isolation unavailable; falling back to plain process execution (no memory.max enforcement, rusage-only telemetry)"
+level=warning msg="cgroup v2 job isolation unavailable; falling back to process-group execution (no memory.max enforcement or peak-memory telemetry)"
 ```
 
 No configuration change is needed — the fallback is automatic. Timeouts and
@@ -145,7 +145,8 @@ conservative estimate until cgroup telemetry becomes available.
 
 ### Prometheus metrics
 
-Exposed at `http://<exporter_address>/metrics` (default `:8081`).
+Exposed at `http://<exporter_address>/metrics` (built-in default `:8080`;
+`config.example.yaml` selects `:8081`).
 
 **Sync counters** (labels: `worker`):
 
@@ -154,8 +155,8 @@ Exposed at `http://<exporter_address>/metrics` (default `:8081`).
 | `success_sync` | Successful sync runs (counter) |
 | `fail_sync` | Failed sync runs (counter) |
 
-**Resource telemetry** (labels: `worker`) — populated when cgroup isolation is
-active:
+**Resource telemetry** (labels: `worker`) — duration is always populated;
+peak-memory and OOM values require cgroup isolation:
 
 | Metric | Description |
 |--------|-------------|
@@ -179,14 +180,18 @@ active:
 
 ### Structured logs
 
-All log lines are JSON with `repo` and `sync_id` fields. Key events:
+Log lines are JSON. Worker-run events carry `repo` and `sync_id`; manager
+lifecycle and queue events instead carry their relevant manager/worker fields.
+Key events:
 
 | Event | Description |
 |-------|-------------|
+| `start_execution` | A sync attempt started (`try_cnt` identifies retries) |
 | `attempt_telemetry` | Emitted after every sync attempt with `duration_sec`, `peak_mem`, `oom_killed`, `cgroup_scoped` |
 | `trigger_sync` | A queued worker is launched |
 | `admission_deferred` | Admission controller deferred a launch (`reason` field explains why) |
 | `job_cgroup_kill` | Cancellation is reaping the job's cgroup tree |
+| `job_process_group_kill` | Linux fallback cancellation is reaping the job's process group |
 | `abort_worker` | An operator aborted a sync via the REST API |
 
 ## JSON control API
@@ -224,9 +229,9 @@ launched.
 
 #### `POST /lug/v1/admin/worker/:name/abort`
 
-Abort the in-flight sync of the named worker. The cancellation propagates
-through the worker's context and (with cgroup isolation) kills the entire
-process tree.
+Abort the in-flight sync of the named worker. Cancellation propagates through
+the worker's context and kills the entire cgroup tree, or the Linux process
+group when cgroup isolation is unavailable.
 
 - **202 Accepted** — cancellation initiated.
 - **404 Not Found** — no worker by that name, or the worker is idle.
@@ -280,12 +285,13 @@ cgroup/PID info) and which are pending launch.
 
 #### `GET /lug/v1/admin/worker/:name/job`
 
-Live details of the named worker's active sync job: cgroup path, PID, start
-time, and — when cgroup isolation is active — live memory and PID counters
-read directly from the kernel.
+Live details of the named worker's active process: cgroup path, PID, start time,
+and — when cgroup isolation is active — live memory and PID counters read
+directly from the kernel.
 
-- **200 OK** — job details (see below).
-- **404 Not Found** — no such worker, or the worker is idle.
+- **200 OK** — active process details (see below).
+- **404 Not Found** — no such worker, or there is currently no active process
+  (including while queued or between retries).
 
 ```json
 {
@@ -323,7 +329,7 @@ Gracefully shut down the manager (stop scheduler, then exit the run loop).
 
 ## Development
 
-This project requires **Go ≥ 1.23** and uses Nix for the development
+This project requires **Go ≥ 1.26** and uses Nix for the development
 environment.
 
 ```sh

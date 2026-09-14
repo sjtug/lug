@@ -442,11 +442,14 @@ func (m *Manager) Exit() {
 
 // AbortWorker cancels the in-flight sync of the named worker, if any.
 // The cancellation propagates through the executor context and kills the
-// whole job process tree when cgroup isolation is active.
+// whole cgroup tree, or the Linux process group when cgroups are unavailable.
 func (m *Manager) AbortWorker(name string) error {
 	for _, w := range m.workers {
 		if w.GetConfig()["name"] != name {
 			continue
+		}
+		if w.GetStatus().Idle {
+			return fmt.Errorf("worker %s is idle", name)
 		}
 		aborter, ok := w.(worker.Aborter)
 		if !ok {

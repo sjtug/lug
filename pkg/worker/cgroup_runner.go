@@ -29,8 +29,9 @@ import (
 //
 // Requirements: cgroup v2 unified hierarchy and a delegated subtree (systemd
 // service with Delegate=yes, or a container started with a private, writable
-// cgroup namespace). When unavailable, executors fall back to plain process
-// execution with rusage-based telemetry; see fallback paths in the executor.
+// cgroup namespace). When unavailable on Linux, executors retain whole-tree
+// cancellation through process groups, but memory enforcement and peak-memory
+// telemetry are unavailable; see fallback paths in the executor.
 
 const (
 	cgroupMountpoint  = "/sys/fs/cgroup"

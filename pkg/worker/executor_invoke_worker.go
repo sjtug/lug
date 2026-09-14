@@ -83,9 +83,8 @@ func (eiw *executorInvokeWorker) TriggerSync() {
 	eiw.signal <- 1
 }
 
-// AbortSync cancels the in-flight sync run, if any. The cancellation
-// propagates through the executor's context and (with cgroup isolation)
-// kills the entire job process tree.
+// AbortSync cancels the in-flight sync run, if any. The executor kills the
+// whole cgroup tree, or the Linux process group when cgroups are unavailable.
 func (eiw *executorInvokeWorker) AbortSync() {
 	eiw.cancelMu.Lock()
 	defer eiw.cancelMu.Unlock()

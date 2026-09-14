@@ -149,7 +149,7 @@ func (r *RestfulAPI) getWorkerJob(w rest.ResponseWriter, req *rest.Request) {
 		return
 	}
 	if ws.ActiveJob == nil {
-		rest.Error(w, "worker "+name+" is idle", http.StatusNotFound)
+		rest.Error(w, "worker "+name+" has no active job", http.StatusNotFound)
 		return
 	}
 	resp := jobDetail{
