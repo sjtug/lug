@@ -29,13 +29,16 @@ type shellScriptExecutor struct {
 	// from `timeout` (seconds).
 	timeout time.Duration
 
+	// newJobCgroup is an internal seam used to exercise the non-cgroup fallback.
+	newJobCgroup func(name string, memMax uint64) (*jobCgroup, error)
+
 	// mu guards activeJob, which is set while RunOnce is executing.
 	mu        sync.Mutex
 	activeJob *ActiveJobInfo
 }
 
 func newShellScriptExecutor(cfg config.RepoConfig) (*shellScriptExecutor, error) {
-	e := &shellScriptExecutor{cfg: cfg}
+	e := &shellScriptExecutor{cfg: cfg, newJobCgroup: newJobCgroup}
 	if raw, ok := cfg["rlimit_mem"]; ok {
 		s, ok := raw.(string)
 		if !ok {
@@ -120,9 +123,14 @@ func (w *shellScriptExecutor) RunOnce(ctx context.Context, logger *logrus.Entry)
 		defer cancel()
 	}
 
-	logger.Debug("Invoking command:", fields[0], "with args:", fields[1:])
+	logger.WithField("command", fields[0]).WithField("args", fields[1:]).Debug("invoking command")
 	cmd := exec.CommandContext(ctx, fields[0], fields[1:]...)
-	cmd.WaitDelay = 30 * time.Second // don't hang forever on inherited pipes
+	configureProcessGroup(cmd)
+	cmd.Cancel = func() error {
+		logger.WithField("event", "job_process_group_kill").Info("killing job process group")
+		return killProcessGroup(cmd)
+	}
+	cmd.WaitDelay = 30 * time.Second // last-resort bound for inherited pipes
 
 	// Forwarding config items to shell script as environmental variables
 	// Adds a LUG_ prefix to their key
@@ -143,7 +151,7 @@ func (w *shellScriptExecutor) RunOnce(ctx context.Context, logger *logrus.Entry)
 	// Ephemeral per-job cgroup; nil when the environment lacks cgroup v2
 	// delegation, in which case the job runs unconfined (plain subprocess).
 	jobName := fmt.Sprintf("%v-%d", w.cfg["name"], time.Now().UnixNano())
-	cg, err := newJobCgroup(jobName, w.memMax)
+	cg, err := w.newJobCgroup(jobName, w.memMax)
 	if err != nil {
 		logger.WithField("event", "job_cgroup_failed").WithError(err).
 			Warn("failed to create job cgroup; running unconfined")

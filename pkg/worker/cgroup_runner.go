@@ -32,7 +32,10 @@ import (
 // cgroup namespace). When unavailable, executors fall back to plain process
 // execution with rusage-based telemetry; see fallback paths in the executor.
 
-const cgroupMountpoint = "/sys/fs/cgroup"
+const (
+	cgroupMountpoint  = "/sys/fs/cgroup"
+	cgroupJobsRootEnv = "LUG_CGROUP_JOBS_ROOT"
+)
 
 var (
 	cgroupRootOnce sync.Once
@@ -46,11 +49,28 @@ var (
 // Returns "" if the environment does not support it.
 func jobsCgroupRoot() string {
 	cgroupRootOnce.Do(func() {
+		if configured := os.Getenv(cgroupJobsRootEnv); configured != "" {
+			root, err := validateDelegatedJobsRoot(configured)
+			if err == nil {
+				log.WithFields(log.Fields{
+					"event":  "cgroup_jobs_root",
+					"path":   root,
+					"source": cgroupJobsRootEnv,
+				}).Info("cgroup v2 job isolation enabled")
+				cgroupJobsRoot = root
+				return
+			}
+			log.WithFields(log.Fields{
+				"event": "cgroup_configured_root_invalid",
+				"path":  configured,
+			}).WithError(err).Warn("configured cgroup jobs root is unusable")
+		}
+
 		root, err := setupJobsCgroup()
 		if err != nil {
 			log.WithField("event", "cgroup_unavailable").WithError(err).
-				Warn("cgroup v2 job isolation unavailable; falling back to plain process execution " +
-					"(no memory.max enforcement, rusage-only telemetry)")
+				Warn("cgroup v2 job isolation unavailable; falling back to process-group execution " +
+					"(no memory.max enforcement or peak-memory telemetry)")
 			return
 		}
 		log.WithField("event", "cgroup_jobs_root").WithField("path", root).
@@ -58,6 +78,43 @@ func jobsCgroupRoot() string {
 		cgroupJobsRoot = root
 	})
 	return cgroupJobsRoot
+}
+
+func validateDelegatedJobsRoot(configured string) (string, error) {
+	root := filepath.Clean(configured)
+	if !filepath.IsAbs(root) || root == cgroupMountpoint ||
+		!strings.HasPrefix(root, cgroupMountpoint+string(filepath.Separator)) {
+		return "", fmt.Errorf("must be an absolute child of %s", cgroupMountpoint)
+	}
+	info, err := os.Stat(root)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("not a directory")
+	}
+	if err := unixAccessWritable(root); err != nil {
+		return "", fmt.Errorf("not writable: %w", err)
+	}
+	controllers, err := os.ReadFile(filepath.Join(root, "cgroup.subtree_control"))
+	if err != nil {
+		return "", err
+	}
+	for _, required := range []string{"memory", "pids"} {
+		if !containsWord(string(controllers), required) {
+			return "", fmt.Errorf("%s controller is not delegated", required)
+		}
+	}
+	return root, nil
+}
+
+func containsWord(words, target string) bool {
+	for _, word := range strings.Fields(words) {
+		if word == target {
+			return true
+		}
+	}
+	return false
 }
 
 func setupJobsCgroup() (string, error) {

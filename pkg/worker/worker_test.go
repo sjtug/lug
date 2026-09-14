@@ -2,20 +2,22 @@ package worker
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"os"
+	"strconv"
 	"strings"
+	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/spf13/viper"
-	"github.com/stretchr/testify/assert"
-
-	"errors"
-	"sync/atomic"
-
 	"github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/sjtug/lug/pkg/config"
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewExternalWorker(t *testing.T) {
@@ -212,6 +214,57 @@ func TestShellScriptExecutorCancel(t *testing.T) {
 	_, err = e.RunOnce(ctx, logrus.WithField("repo", "cancel_test"))
 	asrt.NotNil(err)
 	asrt.Less(time.Since(start), 10*time.Second)
+}
+
+func TestShellScriptExecutorCancelKillsDescendants(t *testing.T) {
+	asrt := assert.New(t)
+	pidFile := t.TempDir() + "/child.pid"
+	e, err := newShellScriptExecutor(config.RepoConfig{
+		"name": "cancel_descendants_test",
+		"script": fmt.Sprintf(
+			`sh -c 'sleep 30 & echo $! > %s; wait'`, pidFile,
+		),
+	})
+	asrt.NoError(err)
+	// Force the production fallback used by restricted containers where cgroup
+	// delegation is unavailable.
+	e.newJobCgroup = func(string, uint64) (*jobCgroup, error) { return nil, nil }
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		_, runErr := e.RunOnce(ctx, logrus.WithField("repo", "cancel_descendants_test"))
+		errCh <- runErr
+	}()
+
+	var childPID int
+	asrt.Eventually(func() bool {
+		data, readErr := os.ReadFile(pidFile)
+		if readErr != nil {
+			return false
+		}
+		childPID, readErr = strconv.Atoi(strings.TrimSpace(string(data)))
+		return readErr == nil
+	}, 2*time.Second, 10*time.Millisecond)
+	if childPID == 0 {
+		cancel()
+		t.Fatal("child process did not publish its PID")
+	}
+
+	start := time.Now()
+	cancel()
+	select {
+	case runErr := <-errCh:
+		asrt.Error(runErr)
+		asrt.Contains(runErr.Error(), "canceled")
+	case <-time.After(5 * time.Second):
+		t.Fatal("executor did not return promptly after cancellation")
+	}
+	asrt.Less(time.Since(start), 5*time.Second)
+	asrt.Eventually(func() bool {
+		err := syscall.Kill(childPID, 0)
+		return errors.Is(err, syscall.ESRCH)
+	}, 2*time.Second, 10*time.Millisecond, "descendant process %d survived cancellation", childPID)
 }
 
 func TestShellScriptExecutorTelemetry(t *testing.T) {

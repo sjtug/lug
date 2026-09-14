@@ -68,8 +68,8 @@ IO-saturated by design, and gating on it would permanently starve the queue.
 Lug uses cgroup v2 to enforce per-job memory limits, kill entire process trees
 on cancellation or timeout, and collect resource telemetry (peak memory, OOM
 kills, duration). **This is optional**: when cgroup isolation is unavailable,
-lug falls back to plain subprocess execution with a logged warning, and
-`rlimit_mem` / admission memory estimates are simply not enforced.
+lug still kills the job's whole process group on cancellation or timeout, but
+`rlimit_mem` and peak-memory telemetry are unavailable.
 
 ### Requirements
 
@@ -82,25 +82,26 @@ lug falls back to plain subprocess execution with a logged warning, and
 
 ### Rootful Docker (Docker Engine with root daemon)
 
-Docker ≥ 20.10 supports `--cgroupns=private` (the default since Docker 23),
-which gives each container its own cgroup namespace and a writable cgroup root.
-Run lug with:
+`--cgroupns=private` gives the container its own cgroup namespace, but Docker
+mounts `/sys/fs/cgroup` read-only for an unprivileged container. The namespace
+flag alone therefore does **not** delegate a writable subtree.
 
-```sh
-docker run -d \
-  --cgroupns=private \
-  -v /srv/mirror:/data \
-  -v $(pwd)/config.yaml:/app/config.yaml \
-  sjtug/lug -c /app/config.yaml
-```
+A container launcher can prepare a narrow delegation as follows:
 
-This is sufficient — no `--privileged`, no extra capabilities, no bind-mounts
-of `/sys/fs/cgroup`. The container sees its own cgroup subtree as `/` and can
-write to it freely.
+1. Start in a private cgroup namespace with `CAP_SYS_ADMIN`.
+2. Remount the namespace's cgroup filesystem writable.
+3. Move the supervisor into a leaf cgroup, enable the `memory` and `pids`
+   controllers, and create a delegated `jobs` subtree.
+4. Set `LUG_CGROUP_JOBS_ROOT` to that subtree.
+5. Drop `CAP_SYS_ADMIN` before executing lug.
 
-> **Verify**: inside the container, `cat /sys/fs/cgroup/cgroup.controllers`
-> should list `memory` (and ideally `pids`). If it shows an empty file or
-> the path does not exist, the host likely uses cgroup v1.
+The mirror deployment's LUG image implements this sequence in its entrypoint.
+Do not bind-mount the host's complete `/sys/fs/cgroup` into the container: that
+exposes cgroups outside the container's own subtree.
+
+> **Verify**: `GET /lug/v1/admin/worker/:name/job` should include a
+> `cgroup_path` while a job is active, and `attempt_telemetry` should report
+> `cgroup_scoped: true`.
 
 ### Rootless Podman
 
@@ -135,9 +136,10 @@ detects this at startup and logs a warning:
 level=warning msg="cgroup v2 job isolation unavailable; falling back to plain process execution (no memory.max enforcement, rusage-only telemetry)"
 ```
 
-No configuration change is needed — the fallback is automatic. `rlimit_mem`
-and `timeout` settings in the config are silently ignored when enforcement is
-unavailable; admission control will operate without memory estimates.
+No configuration change is needed — the fallback is automatic. Timeouts and
+manual cancellation still terminate the complete process group. `rlimit_mem`
+and peak-memory telemetry are unavailable, so admission control uses its
+conservative estimate until cgroup telemetry becomes available.
 
 ## Observability
 
@@ -322,14 +324,16 @@ nix develop
 # Build
 go build ./...
 
-# Run tests (memory-capped to avoid host OOM from cgroup enforcement tests)
-go test -c -o /tmp/worker.test ./pkg/worker/
-systemd-run --user --scope -p MemoryMax=2G -p Delegate=yes /tmp/worker.test -test.v
-
-# Or without cgroup delegation (enforcement tests auto-skip):
+# Normal tests never invoke the kernel OOM killer.
 go test ./...
+
+# Optional destructive OOM integration test, isolated in a bounded scope:
+go test -c -o /tmp/worker.test ./pkg/worker/
+systemd-run --user --scope -p MemoryMax=2G -p Delegate=yes \
+  env LUG_RUN_CGROUP_OOM_TEST=1 \
+  /tmp/worker.test -test.run TestCgroupOOMEnforcement -test.v
 ```
 
-Tests that exercise cgroup enforcement (`TestCgroupEnforcement`,
-`TestCgroupTelemetryHappy`) require a delegated cgroup subtree and
-automatically skip otherwise.
+Non-destructive cgroup tests require a delegated subtree and automatically skip
+otherwise. `TestCgroupOOMEnforcement` additionally requires the explicit
+`LUG_RUN_CGROUP_OOM_TEST=1` opt-in shown above.
