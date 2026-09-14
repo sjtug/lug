@@ -150,6 +150,50 @@ func TestExecutorInvokeWorkerLogsEveryAttemptStart(t *testing.T) {
 	asrt.Equal([]int{1, 2}, attempts)
 }
 
+func TestExecutorInvokeWorkerDoesNotWaitAfterFinalAttempt(t *testing.T) {
+	asrt := assert.New(t)
+	d := &dummyExecutor{}
+	control := make(chan int, 1)
+	w, err := NewExecutorInvokeWorker(d, Status{Idle: true}, config.RepoConfig{
+		"retry":          1,
+		"retry_interval": 3600,
+		"name":           "no-final-wait-test",
+	}, control)
+	asrt.NoError(err)
+
+	go w.RunSync()
+	w.TriggerSync()
+
+	asrt.Eventually(func() bool {
+		return atomic.LoadInt32(&d.RunCnt) == 1 && w.GetStatus().Idle
+	}, time.Second, 10*time.Millisecond)
+}
+
+func TestExecutorInvokeWorkerAbortInterruptsRetryWait(t *testing.T) {
+	asrt := assert.New(t)
+	d := &dummyExecutor{}
+	control := make(chan int, 1)
+	w, err := NewExecutorInvokeWorker(d, Status{Idle: true}, config.RepoConfig{
+		"retry":          2,
+		"retry_interval": 3600,
+		"name":           "cancel-retry-wait-test",
+	}, control)
+	asrt.NoError(err)
+
+	go w.RunSync()
+	w.TriggerSync()
+	asrt.Eventually(func() bool {
+		return atomic.LoadInt32(&d.RunCnt) == 1 && !w.GetStatus().Idle
+	}, time.Second, 10*time.Millisecond)
+
+	w.AbortSync()
+
+	asrt.Eventually(func() bool {
+		return w.GetStatus().Idle
+	}, time.Second, 10*time.Millisecond)
+	asrt.Equal(int32(1), atomic.LoadInt32(&d.RunCnt))
+}
+
 func TestExecutorInvokeWorker(t *testing.T) {
 	asrt := assert.New(t)
 	d := &dummyExecutor{}

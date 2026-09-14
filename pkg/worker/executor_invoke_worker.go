@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -147,6 +148,7 @@ func (w *executorInvokeWorker) RunSync() {
 		retry_limit := w.retry
 		var result execResult
 		var err error
+	retryLoop:
 		for retry_cnt := 1; retry_cnt <= retry_limit; retry_cnt++ {
 			logger.WithFields(log.Fields{
 				"event":   "start_execution",
@@ -163,7 +165,28 @@ func (w *executorInvokeWorker) RunSync() {
 				"try_cnt", retry_cnt).Infof(
 				"Failed on the %v-th executor. Error: %v", retry_cnt, err.Error())
 			logger.Debug("Stderr: ", result.Stderr)
-			time.Sleep(w.retry_interval)
+			if retry_cnt == retry_limit {
+				break
+			}
+
+			logger.WithFields(log.Fields{
+				"event":        "retry_wait",
+				"try_cnt":      retry_cnt,
+				"duration_sec": w.retry_interval.Seconds(),
+			}).Info("waiting before retry")
+			timer := time.NewTimer(w.retry_interval)
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				err = fmt.Errorf("execution canceled during retry wait: %w", ctx.Err())
+				break retryLoop
+			}
 		}
 
 		w.cancelMu.Lock()

@@ -187,6 +187,7 @@ Key events:
 | Event | Description |
 |-------|-------------|
 | `start_execution` | A sync attempt started (`try_cnt` identifies retries) |
+| `retry_wait` | A failed attempt is in its cancelable retry delay (`duration_sec`) |
 | `attempt_telemetry` | Emitted after every sync attempt with `duration_sec`, `peak_mem`, `oom_killed`, `cgroup_scoped` |
 | `trigger_sync` | A queued worker is launched |
 | `admission_deferred` | Admission controller deferred a launch (`reason` field explains why) |
