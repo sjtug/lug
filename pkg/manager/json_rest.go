@@ -159,12 +159,20 @@ func (r *RestfulAPI) getWorkerJob(w rest.ResponseWriter, req *rest.Request) {
 	if ws.ActiveJob.CgroupPath != "" {
 		stats := worker.ReadCgroupStats(ws.ActiveJob.CgroupPath)
 		resp.CgroupStats = &stats
-		resp.AttachHint = fmt.Sprintf(
-			"nsenter --cgroup=%s --fork <command>",
-			ws.ActiveJob.CgroupPath,
-		)
+		resp.AttachHint = jobAttachHint(ws.ActiveJob.MainPID)
 	}
 	if err := w.WriteJson(resp); err != nil {
 		log.Error(err)
 	}
+}
+
+func jobAttachHint(mainPID int) string {
+	// --cgroup selects the target process's cgroup namespace; --join-cgroup
+	// then moves the command into the target process's actual cgroup. Passing
+	// the cgroup directory to --cgroup is incorrect: that option expects a
+	// namespace file such as /proc/<pid>/ns/cgroup.
+	return fmt.Sprintf(
+		"nsenter --target=%d --cgroup --join-cgroup -- <command>",
+		mainPID,
+	)
 }

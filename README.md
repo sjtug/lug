@@ -301,12 +301,21 @@ read directly from the kernel.
     "memory_limit_bytes": 1073741824,
     "pids": 5
   },
-  "attach_hint": "nsenter --cgroup=/sys/fs/cgroup/.../jobs/putty-1234567890 --fork <command>"
+  "attach_hint": "nsenter --target=12345 --cgroup --join-cgroup -- <command>"
 }
 ```
 
-The `attach_hint` field shows the `nsenter` invocation to enter the job's
-cgroup for interactive debugging (run a shell, inspect `/proc`, etc.).
+The `attach_hint` field shows the `nsenter` invocation to join the job's
+cgroup for interactive debugging. Run it in the same PID and cgroup namespaces
+as lug. For Docker, prepend `docker exec -it <lug-container>`; for example:
+
+```sh
+docker exec -it siyuan-lug \
+  nsenter --target=12345 --cgroup --join-cgroup -- sh
+```
+
+`--cgroup` enters the target process's cgroup namespace, while
+`--join-cgroup` moves the new command into that process's cgroup.
 
 #### `DELETE /lug/v1/admin/manager`
 
